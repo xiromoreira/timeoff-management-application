@@ -1,26 +1,16 @@
 'use strict';
 
-var webdriver = require('selenium-webdriver'),
-    Promise   = require("bluebird");
+const get_page = require("./get_page");
 
-module.exports = Promise.promisify( function(args, callback){
-
-  var url             = args.url,
-      driver          = args.driver,
-      result_callback = callback;
-
+module.exports = async (args) => {
+  const page = args.page || await get_page(args);
   // Open front page
-  driver
-    .get( url )
-    .then(function(){
-      // "export" current driver
-      result_callback(
-        null,
-        {
-          driver : driver,
-        }
-      );
-    });
+  await Promise.all([
+    page.waitForNavigation(),
+    page.goto(args.url)
+  ])
+  // "export" current page
+  return { page }
 
-});
+};
 

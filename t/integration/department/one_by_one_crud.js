@@ -1,21 +1,18 @@
 
-'use strict';
+'use strict'
 
-var test                 = require('selenium-webdriver/testing'),
+var
   register_new_user_func = require('../../lib/register_new_user'),
-  login_user_func        = require('../../lib/login_with_user'),
-  open_page_func         = require('../../lib/open_page'),
-  submit_form_func       = require('../../lib/submit_form'),
-  check_elements_func    = require('../../lib/check_elements'),
-  By                     = require('selenium-webdriver').By,
-  config                 = require('../../lib/config'),
-  application_host       = config.get_application_host(),
-  expect                 = require('chai').expect,
-  Bluebird               = require('bluebird'),
-  add_new_user_func      = require('../../lib/add_new_user'),
-  user_info_func         = require('../../lib/user_info'),
+  open_page_func = require('../../lib/open_page'),
+  submit_form_func = require('../../lib/submit_form'),
+  check_elements_func = require('../../lib/check_elements'),
+  config = require('../../lib/config'),
+  application_host = config.get_application_host(),
+  expect = require('chai').expect,
+  add_new_user_func = require('../../lib/add_new_user'),
+  user_info_func = require('../../lib/user_info'),
   new_department_form_id = '#add_new_department_form',
-  department_edit_form_id = '#department_edit_form';
+  department_edit_form_id = '#department_edit_form'
 
 /*
  *  Scenario:
@@ -33,142 +30,101 @@ var test                 = require('selenium-webdriver/testing'),
  *
  * */
 
-describe('Check departments list page', function(){
-  var driver;
+describe('Check departments list page', function () {
+  var page
 
-  this.timeout( config.get_execution_timeout() );
+  this.timeout(config.get_execution_timeout())
 
-  it("Register new account", function(done){
-    register_new_user_func({
-      application_host : application_host,
+  it("Register new account", function () {
+    return register_new_user_func({
+      application_host,
+    }).then((data) => {
+      page = data.page
     })
-    .then(function(data){
-      driver = data.driver;
-      done();
-    });
-  });
+  })
 
-  it("Open page with department list and ensure it has read-only list", function(done){
-    open_page_func({
-      url    : application_host + 'settings/departments/',
-      driver : driver,
+  it("Open page with department list and ensure it has read-only list", async function () {
+    await open_page_func({
+      url: application_host + 'settings/departments/',
+      page,
     })
-    .then(function(){
-      return driver.findElements(By.css('tr[data-vpp-department-list-mode="readonly"]'));
+    const inputs = await page.$$('tr[data-vpp-department-list-mode="readonly"]')
+    expect(inputs.length).to.be.eql(1)
+  })
+
+  it("Ensure list of departments has links for editing each individual one", async function () {
+    const links = await page.$$('a[href*="/settings/departments/edit/"]')
+    expect(links.length).to.be.eql(2, "We expect to have two edit links per department")
+  })
+
+  it("Ensure department has a link to its Manager edit page", async function () {
+    const links = await page.$$('a[href*="/users/edit/"]')
+    expect(links.length).to.be.eql(1, "There exist one link to manager per department")
+
+    const href = await links[0].getProperty('href').then(v => v.jsonValue())
+    expect(href).to.match(/\/users\/edit\/\d+\/$/, "Link to manager indeed contains ID")
+  })
+
+  it('Add new "AAA" department', async function () {
+    await Promise.all([
+      new Promise(res => setTimeout(res, 250)),
+      page.waitForSelector('.modal-content'),
+      page.click('#add_new_department_btn')
+    ])
+    return submit_form_func({
+      page,
+      form_params: [{
+        selector: new_department_form_id + ' input[name="name__new"]',
+        value: 'AAA',
+      }, {
+        selector: new_department_form_id + ' select[name="allowance__new"]',
+        option_selector: 'option[value="15"]',
+        value: '15',
+      }],
+      submit_button_selector: new_department_form_id + ' button[type="submit"]',
+      message: /Changes to departments were saved/,
     })
-    .then(function(inputs){
-      expect(inputs.length).to.be.eql(1);
-      done();
-    });
-  });
+  })
 
-  it("Ensure list of departments has links for editing each individual one", function(done){
-    driver
-      .findElements(By.css('a[href*="/settings/departments/edit/"]'))
-      .then(function(links){
-        expect(links.length).to.be.eql(2, "We expect to have two edit links per department");
-        done();
-      })
-  });
+  it('Ensure that user is landed on department read only list page', function () {
+    expect(page.url()).to.match(/\/settings\/departments\/$/, 'Ensure the landing page is department list')
+  })
 
-  it("Ensure department has a link to its Manager edit page", function(done){
-    driver
-      .findElements(By.css('a[href*="/users/edit/"]'))
-      .then(function(links){
-        expect(links.length).to.be.eql(1, "There exist one link to manager per department");
-        return links[0].getAttribute('href');
-      })
-      .then(function(href){
-        expect(href).to.match(/\/users\/edit\/\d+\/$/, "Link to manager indeed contains ID");
-        done();
-      });
-  });
+  it('Ensure that newly added department AAA is on top of the list', async function () {
+    const texts = await page.$$eval('a[data-vpp-department-name="1"]', els => els.map(e => e.text))
+    expect(texts).to.have.eql(['AAA', 'Sales'], 'Check the order of names')
+  })
 
-  it('Add new "AAA" department', function(done){
-    driver.findElement(By.css('#add_new_department_btn'))
-      .then(function(el){
-        return el.click();
-      })
-      .then(function(){
+  it('Add new "ZZZ" department', async function () {
+    await Promise.all([
+      new Promise(res => setTimeout(res, 250)),
+      page.waitForSelector('.modal-content'),
+      page.click('#add_new_department_btn')
+    ])
+    return submit_form_func({
+      page,
+      form_params: [{
+        selector: new_department_form_id + ' input[name="name__new"]',
+        value: 'ZZZ',
+      }, {
+        selector: new_department_form_id + ' select[name="allowance__new"]',
+        option_selector: 'option[value="15"]',
+        value: '15',
+      }],
+      submit_button_selector: new_department_form_id + ' button[type="submit"]',
+      message: /Changes to departments were saved/,
+    })
+  })
 
-        // This is very important line when working with Bootstrap modals!
-        driver.sleep(1000);
+  it('Ensure that departments respect alphabetical order', async function () {
+    const texts = await page.$$eval('a[data-vpp-department-name="1"]', els => els.map(e => e.text))
+    expect(texts).to.have.eql(['AAA', 'Sales', 'ZZZ'], 'Check the order of names')
+  })
 
-        submit_form_func({
-          driver      : driver,
-          form_params : [{
-            selector : new_department_form_id+' input[name="name__new"]',
-            value : 'AAA',
-          },{
-            selector        : new_department_form_id+' select[name="allowance__new"]',
-            option_selector : 'option[value="15"]',
-            value : '15',
-          }],
-          submit_button_selector : new_department_form_id+' button[type="submit"]',
-          message : /Changes to departments were saved/,
-        })
-        .then(function(){ done() });
-      });
-  });
-
-  it('Ensure that user is landed on department read only list page', function(done){
-    driver
-      .getCurrentUrl()
-      .then(function(url){
-        expect(url).to.match(/\/settings\/departments\/$/, 'Ensure the landing page is department list');
-        done();
-      });
-  });
-
-  it('Ensure that newly added department AAA is on top of the list', function(done){
-    driver
-      .findElements(By.css('a[data-vpp-department-name="1"]'))
-      .then(function(els){ return Bluebird.map(els, function(el){ return el.getText() }) })
-      .then(function(texts){
-        expect(texts).to.have.eql(['AAA', 'Sales'], 'Check the order of names');
-        done();
-      });
-  });
-
-  it('Add new "ZZZ" department', function(done){
-    driver.findElement(By.css('#add_new_department_btn'))
-      .then(function(el){ return el.click() })
-      .then(function(){
-
-        // This is very important line when working with Bootstrap modals!
-        driver.sleep(1000);
-
-        submit_form_func({
-          driver      : driver,
-          form_params : [{
-            selector : new_department_form_id+' input[name="name__new"]',
-            value : 'ZZZ',
-          },{
-            selector        : new_department_form_id+' select[name="allowance__new"]',
-            option_selector : 'option[value="15"]',
-            value : '15',
-          }],
-          submit_button_selector : new_department_form_id+' button[type="submit"]',
-          message : /Changes to departments were saved/,
-        })
-        .then(function(){ done() });
-      });
-  });
-
-  it('Ensure that departments respect alphabetical order', function(done){
-    driver
-      .findElements(By.css('a[data-vpp-department-name="1"]'))
-      .then(function(els){ return Bluebird.map(els, function(el){ return el.getText() }) })
-      .then(function(texts){
-        expect(texts).to.have.eql(['AAA', 'Sales', 'ZZZ'], 'Check the order of names');
-        done();
-      });
-  });
-
-  after(function(done){
-    driver.quit().then(function(){ done(); });
-  });
-});
+  after(function () {
+    return page.close()
+  })
+})
 
 /*
  *  Scenario:
@@ -186,299 +142,243 @@ describe('Check departments list page', function(){
  *
  * */
 
-describe("Edit individual department via department details page", function(){
-  var driver, email_A, email_B, user_id_A, user_id_B, department_edit_page_url,
-    new_department_id;
+describe("Edit individual department via department details page", function () {
+  var page, email_A, email_B, user_id_A, user_id_B, department_edit_page_url,
+    new_department_id
 
-  this.timeout( config.get_execution_timeout() );
+  this.timeout(config.get_execution_timeout())
 
-  it("Register new account", function(done){
-    register_new_user_func({
-      application_host : application_host,
+  it("Register new account", function () {
+    return register_new_user_func({
+      application_host,
+    }).then((data) => {
+      email_A = data.email
+      page = data.page
     })
-    .then(function(data){
-      email_A = data.email;
-      driver  = data.driver;
-      done();
-    });
-  });
+  })
 
-  it("Create second user B", function(done){
-    add_new_user_func({
-      application_host : application_host,
-      driver           : driver,
+  it("Create second user B", function () {
+    return add_new_user_func({
+      application_host, page,
+    }).then((data) => {
+      email_B = data.new_user_email
     })
-    .then(function(data){
-      email_B = data.new_user_email;
-      done();
-    });
-  });
+  })
 
-  it("Obtain information about user A", function(done){
-    user_info_func({
-      driver : driver,
-      email  : email_A,
+  it("Obtain information about user A", function () {
+    return user_info_func({
+      page,
+      email: email_A,
+    }).then((data) => {
+      user_id_A = data.user.id
     })
-    .then(function(data){
-      user_id_A = data.user.id;
-      done();
-    });
-  });
+  })
 
-  it("Obtain information about user B", function(done){
-    user_info_func({
-      driver : driver,
-      email  : email_B,
+  it("Obtain information about user B", function () {
+    return user_info_func({
+      page,
+      email: email_B,
+    }).then((data) => {
+      user_id_B = data.user.id
     })
-    .then(function(data){
-      user_id_B = data.user.id;
-      done();
-    });
-  });
+  })
 
-  it("Open page with department list and click first department in the list", function(done){
-    open_page_func({
-      url    : application_host + 'settings/departments/',
-      driver : driver,
+  it("Open page with department list and click first department in the list", async function () {
+    await open_page_func({
+      url: application_host + 'settings/departments/',
+      page,
     })
-    .then(function(){
-      driver
-        .findElements(By.css('a[href*="/settings/departments/edit/"]'))
-        .then(function(links){ return links[0].click() })
-        .then(function(){ done() });
-    });
-  });
+    await page.click('a[href*="/settings/departments/edit/"]')
+  })
 
-  it('... save edit page URL', function(done){
-    driver
-      .getCurrentUrl()
-      .then(function(url){
-        department_edit_page_url = url;
-        done();
-      });
-  });
+  it('... save edit page URL', function () {
+    department_edit_page_url = page.url()
+  })
 
-  it('Edit department', function(done){
-    submit_form_func({
-      driver      : driver,
-      form_params : [{
-        selector : department_edit_form_id+' input[name="name"]',
-        value : 'Fantastic name',
-      },{
-        selector        : department_edit_form_id+' select[name="allowance"]',
-        option_selector : 'option[value="5"]',
-        value           : '5',
-      },{
-        selector        : department_edit_form_id+' select[name="boss_id"]',
-        option_selector : 'option[value="'+user_id_B+'"]',
-        value           : user_id_B,
-      },{
-        selector : 'input[name="include_public_holidays"]',
-        tick     : true,
-        value    : 'on',
+  it('Edit department', function () {
+    return submit_form_func({
+      page,
+      form_params: [{
+        selector: department_edit_form_id + ' input[name="name"]',
+        value: 'Fantastic name',
+      }, {
+        selector: department_edit_form_id + ' select[name="allowance"]',
+        option_selector: 'option[value="5"]',
+        value: '5',
+      }, {
+        selector: department_edit_form_id + ' select[name="boss_id"]',
+        option_selector: 'option[value="' + user_id_B + '"]',
+        value: user_id_B,
+      }, {
+        selector: 'input[name="include_public_holidays"]',
+        tick: true,
+        value: 'on',
       }],
-      submit_button_selector : department_edit_form_id+' button[type="submit"]',
-      message : /Department .* was updated/,
+      submit_button_selector: department_edit_form_id + ' button[type="submit"]',
+      message: /Department .* was updated/,
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it('Ensure that chnages were applied', function(done){
-    check_elements_func({
-      driver            : driver,
-      elements_to_check : [{
-        selector : department_edit_form_id+' input[name="name"]',
-        value : 'Fantastic name',
-      },{
-        selector        : department_edit_form_id+' select[name="allowance"]',
-        option_selector : 'option[value="5"]',
-        value           : '5',
-      },{
-        selector        : department_edit_form_id+' select[name="boss_id"]',
-        option_selector : 'option[value="'+user_id_B+'"]',
-        value           : user_id_B+"",
-      },{
-        selector : 'input[name="include_public_holidays"]',
-        tick     : false,
-        value    : 'off',
+  it('Ensure that chnages were applied', function () {
+    return check_elements_func({
+      page,
+      elements_to_check: [{
+        selector: department_edit_form_id + ' input[name="name"]',
+        value: 'Fantastic name',
+      }, {
+        selector: department_edit_form_id + ' select[name="allowance"]',
+        option_selector: 'option[value="5"]',
+        value: '5',
+      }, {
+        selector: department_edit_form_id + ' select[name="boss_id"]',
+        option_selector: 'option[value="' + user_id_B + '"]',
+        value: user_id_B + "",
+      }, {
+        selector: 'input[name="include_public_holidays"]',
+        tick: false,
+        value: 'off',
       }],
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it('Ensure that user stays on the same page after updating department details', function(done){
-    driver
-      .getCurrentUrl()
-      .then(function(url){
-        expect(url).to.be.eql(department_edit_page_url);
-        done()
-      });
-  });
+  it('Ensure that user stays on the same page after updating department details', function () {
+    expect(page.url()).to.be.eql(department_edit_page_url)
+  })
 
-  it('Try to remove the department by pressing Delete button on current page', function(done){
-    driver
-      .findElement(By.css('button#remove_btn'))
-      .then(function(btn){ return btn.click() })
-      .then(function(){ done() });
-  });
+  it('Try to remove the department by pressing Delete button on current page', function () {
+    return Promise.all([
+      page.waitForNavigation(),
+      page.click('button#remove_btn')
+    ])
+  })
 
-  it('Ensure that system prevents deleting department', function(done){
-    driver
-      .findElement( By.css('div.alert') )
-      .then(function(el){ return el.getText() })
-      .then(function(txt){
-        expect(txt).to.match(
-          /Cannot remove department .+ as it still has 2 users/,
-          'App complains about non empty department'
-        );
-        done();
-      });
-  });
+  it('Ensure that system prevents deleting department', function () {
+    return page.$eval('div.alert', e => e.innerText.trim()).then(txt =>
+      expect(txt).to.match(
+        /Cannot remove department .+ as it still has 2 users/,
+        'App complains about non empty department'
+      )
+    )
+  })
 
-  it('Go to departments list by clicking on corresponding link', function(done){
-    driver
-      .findElement(By.css('a[data-vpp-all-departments-link="1"]'))
-      .then(function(link){ return link.click() })
-      .then(function(){ done() });
-  });
+  it('Go to departments list by clicking on corresponding link', function () {
+    return page.click('a[data-vpp-all-departments-link="1"]')
+  })
 
-  it('Add new "AAA" department', function(done){
-    driver
-      .findElement(By.css('#add_new_department_btn'))
-      .then(function(el){ return el.click() })
-      .then(function(){
+  it('Add new "AAA" department', async function () {
+    await Promise.all([
+      new Promise(res => setTimeout(res, 250)),
+      page.waitForSelector('.modal-content'),
+      page.click('#add_new_department_btn')
+    ])
 
-        // This is very important line when working with Bootstrap modals!
-        driver.sleep(1000);
-
-        submit_form_func({
-          driver      : driver,
-          form_params : [{
-            selector : new_department_form_id+' input[name="name__new"]',
-            value : 'AAA',
-          },{
-            selector        : new_department_form_id+' select[name="allowance__new"]',
-            option_selector : 'option[value="15"]',
-            value : '15',
-          }],
-          submit_button_selector : new_department_form_id+' button[type="submit"]',
-          message : /Changes to departments were saved/,
-        })
-        .then(function(){ done() });
-      });
-  });
-
-  it('Fetch newly added department ID', function(done){
-    driver
-      .findElements(By.css('a[data-vpp-department-name="1"]'))
-      // We know that newly added attribute is in the top of the list as it starts with "A"
-      .then(function(links){ return links[0].getAttribute('href')})
-      .then(function(href){
-        new_department_id = href.match(/settings\/departments\/edit\/(\d+)\//)[1];
-        expect(new_department_id).to.match(/^\d+$/, 'The department ID is number');
-        done();
-      });
-  });
-
-  it("Open user A details page", function(done){
-    open_page_func({
-      url    : application_host + 'users/edit/'+user_id_A+'/',
-      driver : driver,
-    })
-    .then(function(){ done() });
-  });
-
-  it('... and move her to newly added department', function(done){
-    submit_form_func({
-      driver      : driver,
-      form_params : [{
-        selector        : 'select[name="department"]',
-        option_selector : 'option[value="'+new_department_id+'"]',
-        value           : new_department_id,
+    return submit_form_func({
+      page,
+      form_params: [{
+        selector: new_department_form_id + ' input[name="name__new"]',
+        value: 'AAA',
+      }, {
+        selector: new_department_form_id + ' select[name="allowance__new"]',
+        option_selector: 'option[value="15"]',
+        value: '15',
       }],
-      submit_button_selector : 'button#save_changes_btn',
-      message : /Details for .+ were updated/,
+      submit_button_selector: new_department_form_id + ' button[type="submit"]',
+      message: /Changes to departments were saved/,
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it('Ensure that chnages were applied', function(done){
-    check_elements_func({
-      driver            : driver,
-      elements_to_check : [{
-        selector : 'select[name="department"]',
-        value    : new_department_id,
+  it('Fetch newly added department ID', function () {
+    return page.$eval('a[data-vpp-department-name="1"]', e => e.href).then(href => {
+      new_department_id = href.match(/settings\/departments\/edit\/(\d+)\//)[1]
+      expect(new_department_id).to.match(/^\d+$/, 'The department ID is number')
+    })
+  })
+
+  it("Open user A details page", function () {
+    return open_page_func({
+      url: application_host + 'users/edit/' + user_id_A + '/',
+      page,
+    })
+  })
+
+  it('... and move her to newly added department', function () {
+    return submit_form_func({
+      page,
+      form_params: [{
+        selector: 'select[name="department"]',
+        option_selector: 'option[value="' + new_department_id + '"]',
+        value: new_department_id,
+      }],
+      submit_button_selector: 'button#save_changes_btn',
+      message: /Details for .+ were updated/,
+    })
+  })
+
+  it('Ensure that chnages were applied', function () {
+    return check_elements_func({
+      page,
+      elements_to_check: [{
+        selector: 'select[name="department"]',
+        value: new_department_id,
       }],
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it("Open user B details page", function(done){
-    open_page_func({
-      url    : application_host + 'users/edit/'+user_id_B+'/',
-      driver : driver,
+  it("Open user B details page", function () {
+    return open_page_func({
+      url: application_host + 'users/edit/' + user_id_B + '/',
+      page,
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it('... and move her to newly added department', function(done){
-    submit_form_func({
-      driver      : driver,
-      form_params : [{
-        selector        : 'select[name="department"]',
-        option_selector : 'option[value="'+new_department_id+'"]',
-        value           : new_department_id,
+  it('... and move her to newly added department', function () {
+    return submit_form_func({
+      page,
+      form_params: [{
+        selector: 'select[name="department"]',
+        option_selector: 'option[value="' + new_department_id + '"]',
+        value: new_department_id,
       }],
-      submit_button_selector : 'button#save_changes_btn',
-      message : /Details for .+ were updated/,
+      submit_button_selector: 'button#save_changes_btn',
+      message: /Details for .+ were updated/,
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it('Ensure that chnages were applied', function(done){
-    check_elements_func({
-      driver            : driver,
-      elements_to_check : [{
-        selector : 'select[name="department"]',
-        value    : new_department_id,
+  it('Ensure that chnages were applied', function () {
+    return check_elements_func({
+      page,
+      elements_to_check: [{
+        selector: 'select[name="department"]',
+        value: new_department_id,
       }],
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it('Go to the very first department details page', function(done){
-    open_page_func({
-      url    : department_edit_page_url,
-      driver : driver,
+  it('Go to the very first department details page', function () {
+    return open_page_func({
+      url: department_edit_page_url,
+      page,
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it('Remove the department by pressing Delete button', function(done){
-    driver
-      .findElement(By.css('button#remove_btn'))
-      .then(function(btn){ return btn.click() })
-      .then(function() { return driver.findElement( By.css('div.alert') ) })
-      .then(function(el){ return el.getText() })
-      .then(function(txt){
-        expect(txt).to.match(/Department was successfully removed/);
-        done();
-      })
-  });
+  it('Remove the department by pressing Delete button', async function () {
+    await Promise.all([
+      page.waitForNavigation(),
+      page.click('button#remove_btn')
+    ])
+    return page.$eval('div.alert', div => div.innerText.trim()).then(txt =>
+      expect(txt).to.match(/Department was successfully removed/)
+    )
+  })
 
-  it('Ensure that we have landed on correct page', function(done){
-    driver
-      .getCurrentUrl()
-      .then(function(url){
-        expect(url).to.match(/\/settings\/departments\/$/, 'The URL points to departments page');
-        done();
-      });
-  });
+  it('Ensure that we have landed on correct page', function () {
+    expect(page.url()).to.match(/\/settings\/departments\/$/, 'The URL points to departments page')
+  })
 
-  after(function(done){
-    driver.quit().then(function(){ done(); });
-  });
-});
+  after(function () {
+    return page.close()
+  })
+})
 
 /*
  *  Scenario (edditing secondary supervisers)
@@ -501,260 +401,212 @@ describe("Edit individual department via department details page", function(){
  *
  * */
 
-describe('CRUD for department secondary supervisers', function(){
+describe('CRUD for department secondary supervisers', function () {
 
-  var driver, email_A, email_B, email_C, user_id_A, user_id_B, user_id_C,
-    department_edit_page_url;
+  var page, email_A, email_B, email_C, user_id_A, user_id_B, user_id_C,
+    department_edit_page_url
 
-  this.timeout( config.get_execution_timeout() );
+  this.timeout(config.get_execution_timeout())
 
-  it("Register new account", function(done){
-    register_new_user_func({
-      application_host : application_host,
+  it("Register new account", function () {
+    return register_new_user_func({
+      application_host,
+    }).then((data) => {
+      email_A = data.email
+      page = data.page
     })
-    .then(function(data){
-      email_A = data.email;
-      driver  = data.driver;
-      done();
-    });
-  });
+  })
 
-  it("Obtain information about user A", function(done){
-    user_info_func({
-      driver : driver,
-      email  : email_A,
+  it("Obtain information about user A", function () {
+    return user_info_func({
+      page,
+      email: email_A,
+    }).then((data) => {
+      user_id_A = data.user.id
     })
-    .then(function(data){
-      user_id_A = data.user.id;
-      done();
-    });
-  });
+  })
 
-  it('Go to departments details page', function(done){
-    open_page_func({
-      url    : application_host + 'settings/departments/',
-      driver : driver,
+  it('Go to departments details page', function () {
+    return open_page_func({
+      url: application_host + 'settings/departments/',
+      page,
+    }).then(() =>
+      page.click('a[href*="/settings/departments/edit/"]')
+    )
+  })
+
+  it('... save edit page URL', function () {
+    department_edit_page_url = page.url()
+  })
+
+  it('Invoke "Add secondary supervisers" pop-up window', async function () {
+    await Promise.all([
+      page.waitForSelector('a[data-vpp-add-supervisor-modal-add-new-user="1"]'),
+      page.click('a[data-vpp-add-new-secondary-supervisor="1"]')
+    ])
+    return page.$eval('a[data-vpp-add-supervisor-modal-add-new-user="1"]', e => e.innerText.trim()).then(text =>
+      expect(text).to.match(/Add new employee/)
+    )
+  })
+
+  it("Create second user B", function () {
+    return add_new_user_func({
+      application_host, page,
+    }).then((data) => {
+      email_B = data.new_user_email
     })
-    .then(function(){
-      driver
-        .findElements(By.css('a[href*="/settings/departments/edit/"]'))
-        // Click on the very first link as we have just one department
-        .then(function(links){ return links[0].click() })
-        .then(function(){ done() });
-    });
-  });
+  })
 
-  it('... save edit page URL', function(done){
-    driver
-      .getCurrentUrl()
-      .then(function(url){
-        department_edit_page_url = url;
-        done();
-      });
-  });
-
-  it('Invoke "Add secondary supervisers" pop-up window', function(done){
-    driver
-      .findElement(By.css('a[data-vpp-add-new-secondary-supervisor="1"]'))
-      .then(function(btn){ return btn.click() })
-      .then(function(){
-        driver.sleep(1000);
-        return driver.findElement(By.css('a[data-vpp-add-supervisor-modal-add-new-user="1"]'))
-      })
-      .then(function(link){ return link.getText() })
-      .then(function(text){
-        expect(text).to.match(/Add new employee/);
-        done();
-      });
-  });
-
-  it("Create second user B", function(done){
-    add_new_user_func({
-      application_host : application_host,
-      driver           : driver,
+  it("Obtain information about user B", function () {
+    return user_info_func({
+      page,
+      email: email_B,
+    }).then((data) => {
+      user_id_B = data.user.id
     })
-    .then(function(data){
-      email_B = data.new_user_email;
-      done();
-    });
-  });
+  })
 
-  it("Obtain information about user B", function(done){
-    user_info_func({
-      driver : driver,
-      email  : email_B,
+
+  it("Create second user C", function () {
+    return add_new_user_func({
+      application_host, page,
+    }).then((data) => {
+      email_C = data.new_user_email
     })
-    .then(function(data){
-      user_id_B = data.user.id;
-      done();
-    });
-  });
+  })
 
-
-  it("Create second user C", function(done){
-    add_new_user_func({
-      application_host : application_host,
-      driver           : driver,
+  it("Obtain information about user C", function () {
+    return user_info_func({
+      page,
+      email: email_C,
+    }).then((data) => {
+      user_id_C = data.user.id
     })
-    .then(function(data){
-      email_C = data.new_user_email;
-      done();
-    });
-  });
+  })
 
-  it("Obtain information about user C", function(done){
-    user_info_func({
-      driver : driver,
-      email  : email_C,
+
+  it('Go to any department details page', function () {
+    return open_page_func({
+      url: department_edit_page_url,
+      page,
     })
-    .then(function(data){
-      user_id_C = data.user.id;
-      done();
-    });
-  });
+  })
 
-
-  it('Go to any department details page', function(done){
-    open_page_func({
-      url    : department_edit_page_url,
-      driver : driver,
-    })
-    .then(function(){ done() });
-  });
-
-  it('... and ensure that user A is its manager', function(done){
-    check_elements_func({
-      driver            : driver,
-      elements_to_check : [{
-        selector : 'select#manager_id',
-        value    : String(user_id_A),
+  it('... and ensure that user A is its manager', function () {
+    return check_elements_func({
+      page,
+      elements_to_check: [{
+        selector: 'select#manager_id',
+        value: String(user_id_A),
       }],
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it('Ensure that "secondary supervisors" section is empty', function(done){
-    driver
-      .findElements(By.css('button[name="remove_supervisor_id"]'))
-      .then(function(els){
-        expect(els.length).to.be.eql(0, 'No remove buttons for supervisers as there are not any');
-        done();
-      });
-  });
+  it('Ensure that "secondary supervisors" section is empty', function () {
+    return page.$$('button[name="remove_supervisor_id"]').then(els =>
+      expect(els.length).to.be.eql(0, 'No remove buttons for supervisers as there are not any')
+    )
+  })
 
-  it('click "add supervisers" button and ensure that popup witndow '+
-    'has only user B and C in the list',
-    function(done){
-
-    driver
-      .findElement(By.css('a[data-vpp-add-new-secondary-supervisor="1"]'))
-      .then(function(btn){ return btn.click() })
-      .then(function(){
-        driver.sleep(1000);
-        return driver.findElements(By.css('input[name="supervisor_id"]'))
-      })
-      .then(function(els){ return Bluebird.map(els, function(el){return el.getAttribute('value')})})
-      .then(function(vals){
-        expect(vals.sort()).to.be.eql([user_id_B, user_id_C].map(function(e){return String(e)}).sort(), 'User list is expected');
-        done();
-      });
-  });
-
-  it('tick user B and save changes', function(done){
-    submit_form_func({
-      driver      : driver,
-      form_params : [{
-        selector : 'input[name="supervisor_id"][value="'+user_id_B+'"]',
-        tick     : true,
-        value    : 'on',
-      }],
-      submit_button_selector : 'button[name="do_add_supervisors"]',
-      message : /Supervisors were added to department/,
+  it('click "add supervisers" button and ensure that popup witndow ' +
+    'has only user B and C in the list', async function () {
+      await Promise.all([
+        page.waitForSelector('input[name="supervisor_id"]'),
+        page.click('a[data-vpp-add-new-secondary-supervisor="1"]')
+      ])
+      const els = await page.$$('input[name="supervisor_id"]')
+      const vals = await Promise.all(els.map(e => e.getProperty('value').then(v => v.jsonValue())))
+      expect(vals.sort()).to.be.eql([user_id_B, user_id_C].map(String).sort(), 'User list is expected')
     })
-    .then(function(){ done() });
-  });
 
-  it('Observe that user B appeares on the list of secondary supervisers', function(done){
-    driver
-      .findElements(By.css('button[name="remove_supervisor_id"]'))
-      .then(function(els){
-        expect(els.length).to.be.eql(1, 'No remove buttons for supervisers as there are not any');
-        return els[0].getAttribute('value');
-      })
-      .then(function(val){
-        expect(val).to.be.eql(String(user_id_B), 'It is indeed user B');
-        done();
-      });
-  });
-
-  it('Open "add supervisors" pop up again and ensure that user B has tick next to it and user C does not have it', function(done){
-    driver
-      .findElement(By.css('a[data-vpp-add-new-secondary-supervisor="1"]'))
-      .then( btn => btn.click() )
-      .then( () => driver.sleep(1000) )
-      .then( () => check_elements_func({
-          driver : driver,
-          elements_to_check : [{
-            selector : `input[name="supervisor_id"][value="${ user_id_B }"]`,
-            tick     : true,
-            value    : 'on',
-          }],
-        })
-      )
-      .then( () => check_elements_func({
-          driver : driver,
-          elements_to_check : [{
-            selector : `input[name="supervisor_id"][value="${ user_id_C }"]`,
-            tick     : true,
-            value    : 'off',
-          }],
-        })
-      )
-      .then(() => done());
-  });
-
-  it('Tick user C and un-tick user B and save changes', function(done){
-    submit_form_func({
-      driver      : driver,
-      form_params : [{
-        selector : 'input[name="supervisor_id"][value="'+user_id_B+'"]',
-        tick     : true,
-      },{
-        selector : 'input[name="supervisor_id"][value="'+user_id_C+'"]',
-        tick     : true,
+  it('tick user B and save changes', async function () {
+    const selector = 'input[name="supervisor_id"][value="' + user_id_B + '"]'
+    await Promise.all([
+      page.waitForNetworkIdle(),
+      page.waitForSelector(selector)
+    ])
+    return submit_form_func({
+      page,
+      form_params: [{
+        selector,
+        tick: true,
+        value: 'on',
       }],
-      submit_button_selector : 'button[name="do_add_supervisors"]',
-      message : /Supervisors were added to department/,
+      submit_button_selector: 'button[name="do_add_supervisors"]',
+      message: /Supervisors were added to department/,
     })
-    .then(() => done());
-  });
+  })
 
-  it('Observe that "secondary spervisors" section now contains only user C', function(done) {
-    driver
-      .findElements(By.css('button[name="remove_supervisor_id"]'))
-      .then(els => {
-        expect(els.length).to.be.eql(1, 'No remove buttons for supervisers as there are not any');
-        return els[0].getAttribute('value');
-      })
-      .then(val => {
-        expect(val).to.be.eql(String(user_id_C), 'It is indeed user C');
-        done();
-      });
-  });
+  it('Observe that user B appeares on the list of secondary supervisers', async function () {
+    const els = await page.$$('button[name="remove_supervisor_id"]')
+    expect(els.length).to.be.eql(1, 'No remove buttons for supervisers as there are not any')
 
-  it('Click on "Remove" button next to user C and observe that it disappears from "secondary supervisors" section after page is reloaded', function(done){
-    driver
-      .findElement(By.css(`button[name="remove_supervisor_id"][value="${ user_id_C }"]`))
-      .then(el => el.click())
-      .then(() => driver.findElements(By.css('button[name="remove_supervisor_id"]')))
-      .then(els => {
-        expect(els.length, 'There is no users in secondary supervisers section').to.be.eql(0);
-        done();
-      });
-  });
+    const val = await els[0].getProperty('value').then(v => v.jsonValue())
+    expect(val).to.be.eql(String(user_id_B), 'It is indeed user B')
+  })
 
-  after(function(done){
-    driver.quit().then(() => done());
-  });
+  it('Open "add supervisors" pop up again and ensure that user B has tick next to it and user C does not have it', async function () {
+    await Promise.all([
+      page.waitForSelector('input[name="supervisor_id"]'),
+      page.click('a[data-vpp-add-new-secondary-supervisor="1"]')
+    ])
+    await check_elements_func({
+      page,
+      elements_to_check: [{
+        selector: `input[name="supervisor_id"][value="${user_id_B}"]`,
+        tick: true,
+        value: 'on',
+      }],
+    })
+    await check_elements_func({
+      page,
+      elements_to_check: [{
+        selector: `input[name="supervisor_id"][value="${user_id_C}"]`,
+        tick: true,
+        value: 'off',
+      }],
+    })
+  })
 
-});
+  it('Tick user C and un-tick user B and save changes', async function () {
+    const selector1 = 'input[name="supervisor_id"][value="' + user_id_B + '"]'
+    const selector2 = 'input[name="supervisor_id"][value="' + user_id_C + '"]'
+    // race condition? "Node is either not clickable or not an HTMLElement"
+    await new Promise(res => setTimeout(res, 500))
+    return submit_form_func({
+      page,
+      form_params: [{
+        selector: selector1,
+        tick: true,
+      }, {
+        selector: selector2,
+        tick: true,
+      }],
+      submit_button_selector: 'button[name="do_add_supervisors"]',
+      message: /Supervisors were added to department/,
+    })
+  })
+
+  it('Observe that "secondary spervisors" section now contains only user C', async function () {
+    const els = await page.$$('button[name="remove_supervisor_id"]')
+    expect(els.length).to.be.eql(1, 'No remove buttons for supervisers as there are not any')
+    const val = await els[0].getProperty('value').then(v => v.jsonValue())
+    expect(val).to.be.eql(String(user_id_C), 'It is indeed user C')
+  })
+
+  it('Click on "Remove" button next to user C and observe that it disappears from "secondary supervisors" ' +
+    'section after page is reloaded', async function () {
+      await Promise.all([
+        page.waitForNavigation(),
+        page.click(`button[name="remove_supervisor_id"][value="${user_id_C}"]`)
+      ])
+
+      const els = await page.$$('button[name="remove_supervisor_id"]')
+      expect(els.length, 'There is no users in secondary supervisers section').to.be.eql(0)
+    })
+
+  after(function () {
+    return page.close()
+  })
+
+})

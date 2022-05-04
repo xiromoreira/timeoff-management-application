@@ -1,10 +1,10 @@
 {
-  "name": "TimeOff.Management",
+  "name": "timeoff-management",
   "version": "1.0.0",
   "private": false,
   "description": "Simple yet powerful absence management software for small and medium size business",
   "engines": {
-    "node": ">=13.0.0"
+    "node": ">=14.0.0"
   },
   "dependencies": {
     "bluebird": "^2.10.2",
@@ -53,7 +53,7 @@
     "selenium-webdriver": "^4.1.0"
   },
   "scripts": {
-    "test": "mocha --recursive t",
+    "test": "mocha --exit --recursive t",
     "start": "node bin/wwww",
     "db-update": "node node_modules/.bin/sequelize db:migrate --config=config/db.json --models-path=lib/model/db/",
     "carry-over-allowance": "node bin/calculate_carry_over_allowance_for_all_users.js",

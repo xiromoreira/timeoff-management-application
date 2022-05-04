@@ -1,126 +1,99 @@
 
-'use strict';
+'use strict'
 
-var test             = require('selenium-webdriver/testing'),
-    config           = require('../../lib/config'),
-    application_host = config.get_application_host(),
-    By               = require('selenium-webdriver').By,
-    expect           = require('chai').expect,
-    _                = require('underscore'),
-    Promise          = require("bluebird"),
-    moment           = require('moment'),
-    until            = require('selenium-webdriver').until,
-    login_user_func        = require('../../lib/login_with_user'),
-    register_new_user_func = require('../../lib/register_new_user'),
-    logout_user_func       = require('../../lib/logout_user'),
-    open_page_func         = require('../../lib/open_page'),
-    submit_form_func       = require('../../lib/submit_form'),
-    check_elements_func    = require('../../lib/check_elements'),
-    check_booking_func     = require('../../lib/check_booking_on_calendar'),
-    add_new_user_func      = require('../../lib/add_new_user');
+var
+  config = require('../../lib/config'),
+  application_host = config.get_application_host(),
+  moment = require('moment'),
+  register_new_user_func = require('../../lib/register_new_user'),
+  open_page_func = require('../../lib/open_page'),
+  check_elements_func = require('../../lib/check_elements')
 
-describe("Check the client side logic to facilitate filling new absence form", function(){
+describe("Check the client side logic to facilitate filling new absence form", function () {
 
-  this.timeout( config.get_execution_timeout() );
+  this.timeout(config.get_execution_timeout())
 
-  var driver;
+  var page
 
-  it("Register new company", function(done){
-    register_new_user_func({
-      application_host : application_host,
+  it("Register new company", function () {
+    return register_new_user_func({
+      application_host,
+    }).then(data => {
+      page = data.page
     })
-    .then(function(data){
-      driver = data.driver;
-      done();
-    });
-  });
+  })
 
-  it("Open calendar page", function(done){
-    open_page_func({
-      url    : application_host + 'calendar/?year=2017&show_full_year=1',
-      driver : driver,
+  it("Open calendar page", function () {
+    return open_page_func({
+      url: application_host + 'calendar/?year=2017&show_full_year=1',
+      page,
     })
-    .then(function(){ done() })
-  });
+  })
 
-  it("Open Book new leave pop up window", function(done){
-    driver.findElement(By.css('#book_time_off_btn'))
-      .then(function(el){ return el.click() })
-      // This is very important line when working with Bootstrap modals!
-      .then(function(){ return driver.sleep(1000) })
-      .then(function(){ done() });
-  });
+  it("Open Book new leave pop up window", function () {
+    return Promise.all([
+      new Promise(res => setTimeout(res, 250)),
+      page.waitForSelector('.modal-content'),
+      page.click('#book_time_off_btn')
+    ])
+  })
 
-  it("Ensure by default FROM and TO fields are populated with current date", function(done){
-    check_elements_func({
-      driver : driver,
-      elements_to_check : [{
-        selector : 'input.book-leave-from-input',
-        value : moment().format('YYYY-MM-DD'),
-      },{
-        selector : 'input.book-leave-to-input',
-        value : moment().format('YYYY-MM-DD'),
+  it("Ensure by default FROM and TO fields are populated with current date", function () {
+    return check_elements_func({
+      page,
+      elements_to_check: [{
+        selector: 'input.book-leave-from-input',
+        value: moment().format('YYYY-MM-DD'),
+      }, {
+        selector: 'input.book-leave-to-input',
+        value: moment().format('YYYY-MM-DD'),
       }],
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it("Update FROM to be in future and make sure TO is automatically addusted to the same date", function(done){
+  it("Update FROM to be in future and make sure TO is automatically adjusted to the same date", async function () {
+    const tomorrow_str = moment().add(1, 'days').format('YYYY-MM-DD')
 
-    var inp_from,
-      tomorrow_str = moment().add(1, 'days').format('YYYY-MM-DD');
+    await new Promise(res => setTimeout(res, 500))
+    await page.$eval('input.book-leave-from-input', e => e.value = '')
+    await page.type('input.book-leave-from-input', tomorrow_str, { delay: 20 })
 
-    driver
-      .findElement(By.css('input.book-leave-from-input'))
-      .then(function(el){ inp_from = el; return el.clear() })
-      .then(function(){ return inp_from.sendKeys( tomorrow_str ) });
+    await check_elements_func({
+      page,
+      elements_to_check: [{
+        selector: 'input.book-leave-from-input',
+        value: tomorrow_str,
+      }, {
+        selector: 'input.book-leave-to-input',
+        value: tomorrow_str,
+      }],
+    })
 
-    driver.call(function(){
-      check_elements_func({
-        driver : driver,
-        elements_to_check : [{
-          selector : 'input.book-leave-from-input',
-          value : tomorrow_str,
-        },{
-          selector : 'input.book-leave-to-input',
-          value : tomorrow_str,
-        }],
-      })
-      .then(function(){ done() });
-    });
-
-  });
+  })
 
 
-  it("Update FROM to be in past and make sure TO is stays unchanged", function(done){
-
-    var inp_from,
+  it("Update FROM to be in past and make sure TO is stays unchanged", async function () {
+    var
       tomorrow_str = moment().add(1, 'days').format('YYYY-MM-DD'),
-      yesterday_str = moment().subtract(1, 'days').format('YYYY-MM-DD');
+      yesterday_str = moment().subtract(1, 'days').format('YYYY-MM-DD')
 
-    driver
-      .findElement(By.css('input.book-leave-from-input'))
-      .then(function(el){ inp_from = el; return el.clear() })
-      .then(function(){ return inp_from.sendKeys( yesterday_str ) });
+    await page.$eval('input.book-leave-from-input', e => e.value = '')
+    await page.type('input.book-leave-from-input', yesterday_str)
 
-    driver.call(function(){
-      check_elements_func({
-        driver : driver,
-        elements_to_check : [{
-          selector : 'input.book-leave-from-input',
-          value : yesterday_str,
-        },{
-          selector : 'input.book-leave-to-input',
-          value : tomorrow_str,
-        }],
-      })
-      .then(function(){ done() });
-    });
+    await check_elements_func({
+      page,
+      elements_to_check: [{
+        selector: 'input.book-leave-from-input',
+        value: yesterday_str,
+      }, {
+        selector: 'input.book-leave-to-input',
+        value: tomorrow_str,
+      }],
+    })
+  })
 
-  });
+  after(function () {
+    return page.close()
+  })
 
-  after(function(done){
-    driver.quit().then(function(){ done(); });
-  });
-
-});
+})

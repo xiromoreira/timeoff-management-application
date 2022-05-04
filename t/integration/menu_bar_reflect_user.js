@@ -2,17 +2,15 @@
 'use strict';
 
 
-var test                 = require('selenium-webdriver/testing'),
+const
   register_new_user_func = require('../lib/register_new_user'),
-  login_user_func        = require('../lib/login_with_user'),
-  add_new_user_func      = require('../lib/add_new_user'),
-  By                     = require('selenium-webdriver').By,
-  bluebird               = require("bluebird"),
-  expect                 = require('chai').expect,
-  _                      = require('underscore'),
-  logout_user_func       = require('../lib/logout_user'),
-  config                 = require('../lib/config'),
-  application_host       = config.get_application_host();
+  login_user_func = require('../lib/login_with_user'),
+  add_new_user_func = require('../lib/add_new_user'),
+  expect = require('chai').expect,
+  logout_user_func = require('../lib/logout_user'),
+  config = require('../lib/config'),
+
+  application_host = config.get_application_host();
 
 /*
  *  Scenario to check in thus test.
@@ -27,27 +25,25 @@ var test                 = require('selenium-webdriver/testing'),
  *
  * */
 
-describe('Menu bar reflect permissions of logged in user', function(){
+describe('Menu bar reflect permissions of logged in user', function () {
 
-  this.timeout( config.get_execution_timeout() );
+  this.timeout(config.get_execution_timeout());
 
-  var ordinary_user_email, driver;
+  var ordinary_user_email, page;
 
-  it('Create new company', function(done){
-    register_new_user_func({
-      application_host : application_host,
-    })
-    .then(function(data){
-      driver = data.driver;
-      done();
+  it('Create new company', function () {
+    return register_new_user_func({
+      application_host,
+    }).then(data => {
+      page = data.page;
     });
   });
 
-  it("Check that all necessary menus are shown", function(done){
-    var promises_to_check =  check_presense_promises({
-      driver    : driver,
-      presense  : true,
-      selectors : [
+  it("Check that all necessary menus are shown", function () {
+    return check_presence_promises({
+      page,
+      presence: true,
+      selectors: [
         'li > a[href="/calendar/"]',
         'li > a[href="/calendar/teamview/"]',
         'li > a[href="/calendar/feeds/"]',
@@ -58,45 +54,34 @@ describe('Menu bar reflect permissions of logged in user', function(){
         'li > a[href="/logout/"]',
       ],
     });
-
-    bluebird
-      .all( promises_to_check )
-      .then(function(){ done() });
   });
 
-  it("Create non-admin user", function(done){
-    add_new_user_func({
-      application_host : application_host,
-      driver           : driver,
-    })
-    .then(function(data){
+  it("Create non-admin user", function () {
+    return add_new_user_func({
+      application_host, page,
+    }).then(data => {
       ordinary_user_email = data.new_user_email;
-      done();
     });
   });
 
-  it("Logout from admin acount", function(done){
-    logout_user_func({
-      application_host : application_host,
-      driver           : driver,
+  it("Logout from admin acount", function () {
+    return logout_user_func({
+      application_host, page,
     })
-    .then(function(){ done() });
   });
 
-  it("Login as ordinary user", function(done){
-    login_user_func({
-      application_host : application_host,
-      user_email       : ordinary_user_email,
-      driver           : driver,
+  it("Login as ordinary user", function () {
+    return login_user_func({
+      application_host, page,
+      user_email: ordinary_user_email,
     })
-    .then(function(){ done() });
   });
 
-  it("Check that limited links are there", function(done){
-    var promises_to_check =  check_presense_promises({
-      driver    : driver,
-      presense  : true,
-      selectors : [
+  it("Check that limited links are there", function () {
+    return check_presence_promises({
+      page,
+      presence: true,
+      selectors: [
         'li > a[href="/calendar/"]',
         'li > a[href="/calendar/teamview/"]',
         'li > a[href="/calendar/feeds/"]',
@@ -104,51 +89,35 @@ describe('Menu bar reflect permissions of logged in user', function(){
         'li > a[href="/logout/"]',
       ],
     });
-
-    bluebird
-      .all( promises_to_check)
-      .then( function(){ done() });
   });
 
-  it("Check that admin links are not shown", function(done){
-    var promises_to_check =  check_presense_promises({
-      driver    : driver,
-      presense  : false,
-      selectors : [
+  it("Check that admin links are not shown", function () {
+    return check_presence_promises({
+      page,
+      presence: false,
+      selectors: [
         'li > a[href="/users/"]',
         'li > a[href="/settings/general/"]',
         'li > a[href="/settings/departments/"]',
       ],
     });
-
-    bluebird
-      .all( promises_to_check)
-      .then( function(){ done() });
   });
 
-  after(function(done){
-    driver.quit().then(function(){ done(); });
+  after(function () {
+    return page.close()
   });
 
 });
 
-function check_presense_promises(args){
+function check_presence_promises(args) {
 
   var selectors = args.selectors,
-      driver    = args.driver,
-      presense  = args.presense || false;
+    page = args.page,
+    presence = args.presence || false;
 
-  var promises_to_check = _.map(
-   selectors,
-    function( selector ){
-      return driver
-        .isElementPresent(By.css(selector))
-        .then(function(is_present){
-          expect(is_present).to.be.equal(presense);
-          return bluebird.resolve();
-        })
-    }
-  );
+  return Promise.all(selectors.map(async selector => {
+    const el = await page.$(selector)
+    expect(el != null).to.be.equal(presence);
+  }))
 
-  return promises_to_check;
 };

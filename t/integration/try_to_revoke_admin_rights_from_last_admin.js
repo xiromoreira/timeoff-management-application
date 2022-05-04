@@ -1,20 +1,15 @@
 
 'use strict';
 
-var test                 = require('selenium-webdriver/testing'),
-  By                     = require('selenium-webdriver').By,
-  expect                 = require('chai').expect,
-  _                      = require('underscore'),
-  Promise                = require("bluebird"),
+const
   register_new_user_func = require('../lib/register_new_user'),
-  login_user_func        = require('../lib/login_with_user'),
-  open_page_func         = require('../lib/open_page'),
-  submit_form_func       = require('../lib/submit_form'),
-  check_elements_func    = require('../lib/check_elements'),
-  add_new_user_func      = require('../lib/add_new_user'),
-  config                 = require('../lib/config'),
-  user_info_func         = require('../lib/user_info'),
-  application_host       = config.get_application_host();
+  open_page_func = require('../lib/open_page'),
+  submit_form_func = require('../lib/submit_form'),
+  check_elements_func = require('../lib/check_elements'),
+  add_new_user_func = require('../lib/add_new_user'),
+  config = require('../lib/config'),
+  user_info_func = require('../lib/user_info'),
+  application_host = config.get_application_host();
 
 /*
  * Scenario to ensure system prevent revocking admin rights from very last admin within company.
@@ -27,141 +22,126 @@ var test                 = require('selenium-webdriver/testing'),
  *
  * */
 
-describe('System prevent revoking admin rights from very last admin within company', function(){
+describe('System prevent revoking admin rights from very last admin within company', function () {
 
-  this.timeout( config.get_execution_timeout() );
+  this.timeout(config.get_execution_timeout());
 
-  var email_admin, secondary_user, driver;
+  var email_admin, secondary_user, page;
 
-  it('Create new company', function(done){
-    register_new_user_func({
-      application_host : application_host,
-    })
-    .then(function(data){
-      driver      = data.driver;
+  it('Create new company', function () {
+    return register_new_user_func({
+      application_host,
+    }).then(data => {
+      page = data.page;
       email_admin = data.email;
-      done();
     });
   });
 
-  it("Create second user", function(done){
-    add_new_user_func({
-      application_host : application_host,
-      driver           : driver,
-    })
-    .then(function(data){
-      secondary_user = data.new_user_email,
-      done();
+  it("Create second user", function () {
+    return add_new_user_func({
+      application_host, page,
+    }).then(data => {
+      secondary_user = data.new_user_email
     });
   });
 
-  it('Open Admin user edit details page', function(done){
-    user_info_func({
-      driver : driver,
-      email  : email_admin,
-    })
-    .then(function(data){
+  it('Open Admin user edit details page', function () {
+    return user_info_func({
+      page,
+      email: email_admin,
+    }).then(data => {
       return open_page_func({
-          driver : driver,
-          url    : application_host + 'users/edit/'+data.user.id+'/',
-        });
-    })
-    .then(function(){done()});
-  });
-
-  it('Ensure that Admin tickbox is checked', function(done){
-    check_elements_func({
-      driver : driver,
-      elements_to_check : [{
-        selector : 'input[name="admin"]',
-        tick     : true,
-        value    : 'on',
-      }],
-    })
-    .then(function(){ done() });
-  });
-
-  it('Try to untick the Is Admin flag and make sure system prevent from doing it', function(done){
-    submit_form_func({
-      driver      : driver,
-      form_params : [{
-        selector : 'input[name="admin"]',
-        tick     : true,
-        value    : 'on',
-      }],
-      submit_button_selector : 'button#save_changes_btn',
-      message: /This is last admin within company. Cannot revoke admin rights./,
-    })
-    .then(function(){ done() });
-  });
-
-  it('Open detail page for second employee', function(done){
-    user_info_func({
-      driver : driver,
-      email : secondary_user,
-    })
-    .then(function(data){
-      return open_page_func({
-        driver : driver,
-        url : application_host + 'users/edit/'+data.user.id+'/',
+        page,
+        url: application_host + 'users/edit/' + data.user.id + '/',
       });
     })
-    .then(function(){ done() });
   });
 
-  it('Ensure that Admin tickbox is not checked', function(done){
-    check_elements_func({
-      driver : driver,
-      elements_to_check : [{
-        selector : 'input[name="admin"]',
-        tick     : true,
-        value    : 'off',
+  it('Ensure that Admin tickbox is checked', function () {
+    return check_elements_func({
+      page,
+      elements_to_check: [{
+        selector: 'input[name="admin"]',
+        tick: true,
+        value: 'on',
       }],
     })
-    .then(function(){ done() });
   });
 
-  it('Make secondary user to be admin', function(done){
-    submit_form_func({
-      driver      : driver,
-      form_params : [{
-        selector : 'input[name="admin"]',
-        tick     : true,
-        value    : 'on',
+  it('Try to untick the Is Admin flag and make sure system prevent from doing it', function () {
+    return submit_form_func({
+      page,
+      form_params: [{
+        selector: 'input[name="admin"]',
+        tick: true,
+        value: 'on',
       }],
-      submit_button_selector : 'button#save_changes_btn',
+      submit_button_selector: 'button#save_changes_btn',
+      message: /This is last admin within company. Cannot revoke admin rights./,
+    })
+  });
+
+  it('Open detail page for second employee', function () {
+    return user_info_func({
+      page,
+      email: secondary_user,
+    }).then(data => {
+      return open_page_func({
+        page,
+        url: application_host + 'users/edit/' + data.user.id + '/',
+      });
+    })
+  });
+
+  it('Ensure that Admin tickbox is not checked', function () {
+    return check_elements_func({
+      page,
+      elements_to_check: [{
+        selector: 'input[name="admin"]',
+        tick: true,
+        value: 'off',
+      }],
+    })
+  });
+
+  it('Make secondary user to be admin', function () {
+    return submit_form_func({
+      page,
+      form_params: [{
+        selector: 'input[name="admin"]',
+        tick: true,
+        value: 'on',
+      }],
+      submit_button_selector: 'button#save_changes_btn',
       message: /Details for .* were updated/,
     })
-    .then(function(){ done() });
   });
 
-  it('Ensure that secondary user bacame admin', function(done){
-    check_elements_func({
-      driver : driver,
-      elements_to_check : [{
-        selector : 'input[name="admin"]',
-        tick     : true,
-        value    : 'on',
+  it('Ensure that secondary user bacame admin', function () {
+    return check_elements_func({
+      page,
+      elements_to_check: [{
+        selector: 'input[name="admin"]',
+        tick: true,
+        value: 'on',
       }],
     })
-    .then(function(){ done() });
   });
 
-  it('Revoke admin rights from secondary user', function(done){
-    submit_form_func({
-      driver      : driver,
-      form_params : [{
-        selector : 'input[name="admin"]',
-        tick     : true,
-        value    : 'off',
+  it('Revoke admin rights from secondary user', function () {
+    return submit_form_func({
+      page,
+      form_params: [{
+        selector: 'input[name="admin"]',
+        tick: true,
+        value: 'off',
       }],
-      submit_button_selector : 'button#save_changes_btn',
+      submit_button_selector: 'button#save_changes_btn',
       message: /Details for .* were updated/,
     })
-    .then(function(){ done() });
   });
 
-  after(function(done){
-    driver.quit().then(function(){ done(); });
+  after(function () {
+    return page.close()
   });
 });

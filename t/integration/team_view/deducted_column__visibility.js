@@ -26,319 +26,272 @@
 
 
 const
-  test                   = require('selenium-webdriver/testing'),
-  By                     = require('selenium-webdriver').By,
-  Promise                = require("bluebird"),
-  expect                 = require('chai').expect,
-  add_new_user_func      = require('../../lib/add_new_user'),
-  check_elements_func    = require('../../lib/check_elements'),
-  config                 = require('../../lib/config'),
-  login_user_func        = require('../../lib/login_with_user'),
-  logout_user_func       = require('../../lib/logout_user'),
-  open_page_func         = require('../../lib/open_page'),
+  expect = require('chai').expect,
+  add_new_user_func = require('../../lib/add_new_user'),
+  check_elements_func = require('../../lib/check_elements'),
+  config = require('../../lib/config'),
+  login_user_func = require('../../lib/login_with_user'),
+  logout_user_func = require('../../lib/logout_user'),
+  open_page_func = require('../../lib/open_page'),
   register_new_user_func = require('../../lib/register_new_user'),
-  submit_form_func       = require('../../lib/submit_form'),
-  user_info_func         = require('../../lib/user_info'),
-  application_host       = config.get_application_host(),
+  submit_form_func = require('../../lib/submit_form'),
+  user_info_func = require('../../lib/user_info'),
+  application_host = config.get_application_host(),
   new_department_form_id = '#add_new_department_form',
-  company_edit_form_id   ='#company_edit_form';
+  company_edit_form_id = '#company_edit_form';
 
-describe('Check that values for new columns are shown only for employess currently login user can supervise', function(){
+describe('Check that values for new columns are shown only for employess currently login user can supervise', function () {
 
-  this.timeout( config.get_execution_timeout() );
+  this.timeout(config.get_execution_timeout());
 
-  let driver,
+  let page,
     email_A, user_id_A,
     email_B, user_id_B,
     email_C, user_id_C;
 
-  it("Register new company as admin user A", function(done){
-    register_new_user_func({
-      application_host : application_host,
-    })
-    .then(data => {
-      driver  = data.driver;
+  it("Register new company as admin user A", function () {
+    return register_new_user_func({
+      application_host,
+    }).then(data => {
+      page = data.page;
       email_A = data.email;
-      done();
     });
   });
 
-  it("Create second user B", function(done){
-    add_new_user_func({
-      application_host : application_host,
-      driver           : driver,
-    })
-    .then(data => {
+  it("Create second user B", function () {
+    return add_new_user_func({
+      application_host, page,
+    }).then(data => {
       email_B = data.new_user_email;
-      done();
     });
   });
 
-  it("Create second user C", function(done){
-    add_new_user_func({
-      application_host : application_host,
-      driver           : driver,
-    })
-    .then(data => {
+  it("Create second user C", function () {
+    return add_new_user_func({
+      application_host, page,
+    }).then(data => {
       email_C = data.new_user_email;
-      done();
     });
   });
 
-  it("Obtain information about user A", function(done){
-    user_info_func({
-      driver : driver,
-      email  : email_A,
-    })
-    .then(data => {
+  it("Obtain information about user A", function () {
+    return user_info_func({
+      page,
+      email: email_A,
+    }).then(data => {
       user_id_A = data.user.id;
-      done();
     });
   });
 
-  it("Obtain information about user B", function(done){
-    user_info_func({
-      driver : driver,
-      email  : email_B,
-    })
-    .then(data => {
+  it("Obtain information about user B", function () {
+    return user_info_func({
+      page,
+      email: email_B,
+    }).then(data => {
       user_id_B = data.user.id;
-      done();
     });
   });
 
-  it("Obtain information about user C", function(done){
-    user_info_func({
-      driver : driver,
-      email  : email_C,
-    })
-    .then(data => {
+  it("Obtain information about user C", function () {
+    return user_info_func({
+      page,
+      email: email_C,
+    }).then(data => {
       user_id_C = data.user.id;
-      done();
     });
   });
 
-  it("Open page for editing company details", function(done){
-    open_page_func({
-      url    : application_host + 'settings/general/',
-      driver : driver,
+  it("Open page for editing company details", function () {
+    return open_page_func({
+      url: application_host + 'settings/general/',
+      page,
     })
-    .then(() => done());
   });
 
-  it('Ensure company has "Share absences between all employees" flag OFF', function( done ){
-    check_elements_func({
-      driver : driver,
-      elements_to_check : [{
-        selector : company_edit_form_id+' input[name="share_all_absences"]',
-        value    : 'off',
-        tick     : true,
+  it('Ensure company has "Share absences between all employees" flag OFF', function () {
+    return check_elements_func({
+      page,
+      elements_to_check: [{
+        selector: company_edit_form_id + ' input[name="share_all_absences"]',
+        value: 'off',
+        tick: true,
       }],
     })
-    .then(() => done());
   });
 
-  it('... and tick that box ON', function(done){
-    submit_form_func({
-      driver      : driver,
-      form_params : [{
-          selector : company_edit_form_id+' input[name="share_all_absences"]',
-          tick     : true,
-          value    : 'on',
+  it('... and tick that box ON', function () {
+    return submit_form_func({
+      page,
+      form_params: [{
+        selector: company_edit_form_id + ' input[name="share_all_absences"]',
+        tick: true,
+        value: 'on',
       }],
-      submit_button_selector : company_edit_form_id+' button[type="submit"]',
-      message : /successfully/i,
-      should_be_successful : true,
+      submit_button_selector: company_edit_form_id + ' button[type="submit"]',
+      message: /successfully/i,
+      should_be_successful: true,
     })
-    .then(() => done());
   });
 
-  it("Open department management page", function(done){
-    open_page_func({
-      url    : application_host + 'settings/departments/',
-      driver : driver,
+  it("Open department management page", function () {
+    return open_page_func({
+      url: application_host + 'settings/departments/',
+      page,
     })
-    .then(() => done());
   });
 
-  it("Add new department and make its approver to be user B", function(done){
-    driver
-      .findElement(By.css('#add_new_department_btn'))
-      .then(el => el.click())
-      .then(function(){
+  it("Add new department and make its approver to be user B", async function () {
+    await Promise.all([
+      new Promise(res => setTimeout(res, 250)),
+      page.waitForSelector('.modal-content'),
+      page.click('#add_new_department_btn')
+    ])
 
-        // This is very important line when working with Bootstrap modals!
-        driver.sleep(1000);
-
-        submit_form_func({
-          driver      : driver,
-          form_params : [{
-            selector : `${ new_department_form_id } input[name="name__new"]`,
-            // Just to make sure it is always first in the lists
-            value : 'AAAAA',
-          },{
-            selector        : `${ new_department_form_id } select[name="allowance__new"]`,
-            option_selector : 'option[value="15"]',
-            value : '15',
-          },{
-            selector        : `${ new_department_form_id } select[name="boss_id__new"]`,
-            option_selector : `select[name="boss_id__new"] option[value="${ user_id_B }"]`,
-          }],
-          submit_button_selector : `${ new_department_form_id } button[type="submit"]`,
-          message : /Changes to departments were saved/,
-        })
-        .then(function(){ done() });
-      });
-  });
-
-  it("Open user editing page for user B", function(done){
-    open_page_func({
-      url    : `${ application_host }users/edit/${ user_id_C }/`,
-      driver : driver,
+    return submit_form_func({
+      page,
+      form_params: [{
+        selector: `${new_department_form_id} input[name="name__new"]`,
+        // Just to make sure it is always first in the lists
+        value: 'AAAAA',
+      }, {
+        selector: `${new_department_form_id} select[name="allowance__new"]`,
+        option_selector: 'option[value="15"]',
+        value: '15',
+      }, {
+        selector: `${new_department_form_id} select[name="boss_id__new"]`,
+        option_selector: `option[value="${user_id_B}"]`,
+      }],
+      submit_button_selector: `${new_department_form_id} button[type="submit"]`,
+      message: /Changes to departments were saved/,
     })
-    .then(() => done());
   });
 
-  it("And make sure it is part of the newly added department", function(done){
-    submit_form_func({
-      submit_button_selector : 'button#save_changes_btn',
-      driver      : driver,
-      form_params : [{
-        selector : 'select[name="department"]',
+  it("Open user editing page for user B", function () {
+    return open_page_func({
+      url: `${application_host}users/edit/${user_id_C}/`,
+      page,
+    })
+  });
+
+  it("And make sure it is part of the newly added department", function () {
+    return submit_form_func({
+      submit_button_selector: 'button#save_changes_btn',
+      page,
+      form_params: [{
+        selector: 'select[name="department"]',
         // Newly added department should be first in the list as it is
         // sorted by AZ and department started with AA
-        option_selector : 'select[name="department"] option:nth-child(1)',
+        option_selector: 'option:nth-child(1)',
       }],
-      message : /Details for .* were updated/,
+      message: /Details for .* were updated/,
     })
-    .then(function(){ done() });
   });
 
-  it('As user A ensure team view shows deducted values for all three users', function(done){
-    open_page_func({
-      url    : `${ application_host }calendar/teamview/`,
-      driver : driver,
+  it('As user A ensure team view shows deducted values for all three users', async function () {
+    await open_page_func({
+      url: `${application_host}calendar/teamview/`,
+      page,
     })
 
-    .then(() => driver.findElement(By.css(`tr[data-vpp-user-list-row="${user_id_A}"] span.teamview-deducted-days`)))
-    .then(el => el.getText())
-    .then(txt => {
-      expect(txt).to.be.eql('0');
-      return Promise.resolve(1);
-    })
+    let txt = await page.$eval(
+      `tr[data-vpp-user-list-row="${user_id_A}"] span.teamview-deducted-days`,
+      e => e.innerText.trim()
+    )
+    expect(txt).to.be.eql('0')
 
-    .then(() => driver.findElement(By.css(`tr[data-vpp-user-list-row="${user_id_B}"] span.teamview-deducted-days`)))
-    .then(el => el.getText())
-    .then(txt => {
-      expect(txt).to.be.eql('0');
-      return Promise.resolve(1);
-    })
+    txt = await page.$eval(
+      `tr[data-vpp-user-list-row="${user_id_B}"] span.teamview-deducted-days`,
+      e => e.innerText.trim()
+    )
+    expect(txt).to.be.eql('0')
 
-    .then(() => driver.findElement(By.css(`tr[data-vpp-user-list-row="${user_id_C}"] span.teamview-deducted-days`)))
-    .then(el => el.getText())
-    .then(txt => {
-      expect(txt).to.be.eql('0');
-      return Promise.resolve(1);
-    })
+    txt = await page.$eval(
+      `tr[data-vpp-user-list-row="${user_id_C}"] span.teamview-deducted-days`,
+      e => e.innerText.trim()
+    )
+    expect(txt).to.be.eql('0')
 
-    .then(function(){ done() });
   });
 
-  it("Logout from user A (admin)", function(done){
-    logout_user_func({
-      application_host : application_host,
-      driver           : driver,
+  it("Logout from user A (admin)", function () {
+    return logout_user_func({
+      application_host, page,
     })
-    .then(() => done());
   });
 
-  it("Login as user B", function(done){
-    login_user_func({
-      application_host : application_host,
-      user_email       : email_B,
-      driver           : driver,
+  it("Login as user B", function () {
+    return login_user_func({
+      application_host, page,
+      user_email: email_B,
     })
-    .then(() => done());
   });
 
-  it('Login as user B and ensure she sees deducted days only for user B (self) and user C but not for user A', function(done){
-    open_page_func({
-      url    : `${ application_host }calendar/teamview/`,
-      driver : driver,
+  it('Login as user B and ensure she sees deducted days only for user B (self) and user C but not for user A', async function () {
+    await open_page_func({
+      url: `${application_host}calendar/teamview/`,
+      page,
     })
 
-    .then(() => driver.findElement(By.css(`tr[data-vpp-user-list-row="${user_id_A}"] span.teamview-deducted-days`)))
-    .then(el => el.getText())
-    .then(txt => {
-      expect(txt).to.be.eql('');
-      return Promise.resolve(1);
-    })
+    let txt = await page.$eval(
+      `tr[data-vpp-user-list-row="${user_id_A}"] span.teamview-deducted-days`,
+      e => e.innerText.trim()
+    )
+    expect(txt).to.be.eql('')
 
-    .then(() => driver.findElement(By.css(`tr[data-vpp-user-list-row="${user_id_B}"] span.teamview-deducted-days`)))
-    .then(el => el.getText())
-    .then(txt => {
-      expect(txt).to.be.eql('0');
-      return Promise.resolve(1);
-    })
+    txt = await page.$eval(
+      `tr[data-vpp-user-list-row="${user_id_B}"] span.teamview-deducted-days`,
+      e => e.innerText.trim()
+    )
+    expect(txt).to.be.eql('0')
 
-    .then(() => driver.findElement(By.css(`tr[data-vpp-user-list-row="${user_id_C}"] span.teamview-deducted-days`)))
-    .then(el => el.getText())
-    .then(txt => {
-      expect(txt).to.be.eql('0');
-      return Promise.resolve(1);
-    })
+    txt = await page.$eval(
+      `tr[data-vpp-user-list-row="${user_id_C}"] span.teamview-deducted-days`,
+      e => e.innerText.trim()
+    )
+    expect(txt).to.be.eql('0')
 
-    .then(function(){ done() });
   });
 
-  it("Logout from user B", function(done){
-    logout_user_func({
-      application_host : application_host,
-      driver           : driver,
+  it("Logout from user B", function () {
+    return logout_user_func({
+      application_host, page,
     })
-    .then(() => done());
   });
 
-  it("Login as user C", function(done){
-    login_user_func({
-      application_host : application_host,
-      user_email       : email_C,
-      driver           : driver,
+  it("Login as user C", function () {
+    return login_user_func({
+      application_host, page,
+      user_email: email_C,
     })
-    .then(() => done());
   });
 
-  it('Login as user C and ensure she sees only values for her account', function(done){
-    open_page_func({
-      url    : `${ application_host }calendar/teamview/`,
-      driver : driver,
+  it('Login as user C and ensure she sees only values for her account', async function () {
+    await open_page_func({
+      url: `${application_host}calendar/teamview/`,
+      page,
     })
 
-    .then(() => driver.findElement(By.css(`tr[data-vpp-user-list-row="${user_id_A}"] span.teamview-deducted-days`)))
-    .then(el => el.getText())
-    .then(txt => {
-      expect(txt).to.be.eql('');
-      return Promise.resolve(1);
-    })
+    let txt = await page.$eval(
+      `tr[data-vpp-user-list-row="${user_id_A}"] span.teamview-deducted-days`,
+      e => e.innerText.trim()
+    )
+    expect(txt).to.be.eql('')
 
-    .then(() => driver.findElement(By.css(`tr[data-vpp-user-list-row="${user_id_B}"] span.teamview-deducted-days`)))
-    .then(el => el.getText())
-    .then(txt => {
-      expect(txt).to.be.eql('');
-      return Promise.resolve(1);
-    })
+    txt = await page.$eval(
+      `tr[data-vpp-user-list-row="${user_id_B}"] span.teamview-deducted-days`,
+      e => e.innerText.trim()
+    )
+    expect(txt).to.be.eql('')
 
-    .then(() => driver.findElement(By.css(`tr[data-vpp-user-list-row="${user_id_C}"] span.teamview-deducted-days`)))
-    .then(el => el.getText())
-    .then(txt => {
-      expect(txt).to.be.eql('0');
-      return Promise.resolve(1);
-    })
+    txt = await page.$eval(
+      `tr[data-vpp-user-list-row="${user_id_C}"] span.teamview-deducted-days`,
+      e => e.innerText.trim()
+    )
+    expect(txt).to.be.eql('0')
 
-    .then(function(){ done() });
   });
 
-  after(function(done){
-    driver.quit().then(() => done());
+  after(function () {
+    return page.close()
   });
 });

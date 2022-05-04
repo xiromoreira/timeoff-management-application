@@ -1,18 +1,13 @@
 
 'use strict';
 
-var test                 = require('selenium-webdriver/testing'),
-  By                     = require('selenium-webdriver').By,
-  expect                 = require('chai').expect,
-  _                      = require('underscore'),
-  Promise                = require("bluebird"),
+const expect = require('chai').expect,
   register_new_user_func = require('../lib/register_new_user'),
-  login_user_func        = require('../lib/login_with_user'),
-  open_page_func         = require('../lib/open_page'),
-  submit_form_func       = require('../lib/submit_form'),
-  add_new_user_func      = require('../lib/add_new_user'),
-  config                 = require('../lib/config'),
-  application_host       = config.get_application_host();
+  open_page_func = require('../lib/open_page'),
+  submit_form_func = require('../lib/submit_form'),
+  add_new_user_func = require('../lib/add_new_user'),
+  config = require('../lib/config'),
+  application_host = config.get_application_host();
 
 /*
  *  Scenario to check:
@@ -24,80 +19,71 @@ var test                 = require('selenium-webdriver/testing'),
  *
  * */
 
-describe('Edit user to have duplicated email', function(){
+describe('Edit user to have duplicated email', function () {
 
-  this.timeout( config.get_execution_timeout() );
+  this.timeout(config.get_execution_timeout());
 
-  var email_admin, driver;
+  var email_admin, page;
 
-  it('Create new company', function(done){
-    register_new_user_func({
-      application_host : application_host,
-    })
-    .then(function(data){
-      driver = data.driver;
+  it('Create new company', function () {
+    return register_new_user_func({
+      application_host,
+    }).then(data => {
+      page = data.page;
       email_admin = data.email;
-      done();
     });
   });
 
-  it("Create second user", function(done){
-    add_new_user_func({
-      application_host : application_host,
-      driver           : driver,
+  it("Create second user", function () {
+    return add_new_user_func({
+      application_host, page,
     })
-    .then(function(){ done() });
   });
 
-  it("Open 'users' page", function(done){
-    open_page_func({
-      url    : application_host + 'users/',
-      driver : driver,
+  it("Open 'users' page", function () {
+    return open_page_func({
+      url: application_host + 'users/',
+      page,
     })
-    .then(function(){ done() });
   });
 
   it("Make sure that both users are shown " +
     "and click on latest user (assuming users are sorted alphabetichally and " +
-    "test user names are derived from epoch)", function(done){
-    driver
-      .findElements(By.css( 'td.user-link-cell a' ))
-      .then(function(elements){
-        expect(elements.length).to.be.equal(2);
-        // click on second user link
-        return elements[1].click()
-      })
-      .then(function(){ done() });
-  });
+    "test user names are derived from epoch)", async function () {
+      const elements = await page.$$('td.user-link-cell a')
+      expect(elements.length).to.be.equal(2)
+      return Promise.all([
+        page.waitForNavigation(),
+        elements[1].click(),
+      ])
+    });
 
-  it("Try to assign to second user the same email as ADMIN has", function(done){
-    submit_form_func({
-      driver      : driver,
-      form_params : [{
-        selector : 'input[name="email_address"]',
-        value    : email_admin,
+  it("Try to assign to second user the same email as ADMIN has", function () {
+    return submit_form_func({
+      page,
+      form_params: [{
+        selector: 'input[name="email_address"]',
+        value: email_admin,
       }],
-      submit_button_selector : 'button#save_changes_btn',
-      message : /Email is already in use/,
+      submit_button_selector: 'button#save_changes_btn',
+      message: /Email is already in use/,
     })
-    .then(function(){ done() });
   });
 
-  it("Update email user with unique email address", function(done){
-    submit_form_func({
-      driver      : driver,
-      form_params : [{
-        selector : 'input[name="email_address"]',
-        value    : 'foobar'+email_admin,
+  it("Update email user with unique email address", function () {
+    return submit_form_func({
+      page,
+      form_params: [{
+        selector: 'input[name="email_address"]',
+        value: 'foobar' + email_admin,
       }],
-      submit_button_selector : 'button#save_changes_btn',
-      message : /Details for .* were updated/,
+      submit_button_selector: 'button#save_changes_btn',
+      message: /Details for .* were updated/,
     })
-    .then(function(){ done() });
   });
 
-  after(function(done){
-    driver.quit().then(function(){ done(); });
+  after(function () {
+    return page.close()
   });
 
 });

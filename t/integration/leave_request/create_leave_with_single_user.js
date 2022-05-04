@@ -1,23 +1,15 @@
 
-'use strict';
+'use strict'
 
 const
-  test             = require('selenium-webdriver/testing'),
-  config           = require('../../lib/config'),
+  config = require('../../lib/config'),
   application_host = config.get_application_host(),
-  By               = require('selenium-webdriver').By,
-  expect           = require('chai').expect,
-  _                = require('underscore'),
-  Promise          = require("bluebird"),
-  moment           = require('moment'),
-  login_user_func        = require('../../lib/login_with_user'),
+  moment = require('moment'),
   register_new_user_func = require('../../lib/register_new_user'),
-  open_page_func         = require('../../lib/open_page'),
-  submit_form_func       = require('../../lib/submit_form'),
-  check_elements_func    = require('../../lib/check_elements'),
-  check_booking_func     = require('../../lib/check_booking_on_calendar'),
-  user_info_func         = require('../../lib/user_info'),
-  userStartsAtTheBeginingOfYear = require('../../lib/set_user_to_start_at_the_beginning_of_the_year');
+  open_page_func = require('../../lib/open_page'),
+  submit_form_func = require('../../lib/submit_form'),
+  check_booking_func = require('../../lib/check_booking_on_calendar'),
+  userStartsAtTheBeginingOfYear = require('../../lib/set_user_to_start_at_the_beginning_of_the_year')
 
 
 /*
@@ -31,76 +23,66 @@ const
  *
  * */
 
-describe('Leave request with single user', function(){
+describe('Leave request with single user', function () {
 
-  this.timeout( config.get_execution_timeout() );
+  this.timeout(config.get_execution_timeout())
 
-  let new_user_email, driver;
+  let new_user_email, page
 
-  it('Create new company', function(done){
-    register_new_user_func({ application_host })
-    .then((data) => {
-      ({driver, email:new_user_email} = data);
-      done();
-    });
-  });
-
-  it("Ensure user starts at the very beginning of current year", done =>{
-    userStartsAtTheBeginingOfYear({driver, email: new_user_email, year:2015})
-      .then(() => done())
-  });
-
-  it("Open calendar page", function(done){
-    open_page_func({
-      url    : application_host + 'calendar/?show_full_year=1&year=2015',
-      driver : driver,
+  it('Create new company', function () {
+    return register_new_user_func({ application_host }).then((data) => {
+      ({ page, email: new_user_email } = data)
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it("Open page to create new leave", function(done){
-    driver.findElement(By.css('#book_time_off_btn'))
-      .then(function(el){
-        return el.click();
-      })
-      .then(function(){ done() });
-  });
+  it("Ensure user starts at the very beginning of current year", function () {
+    return userStartsAtTheBeginingOfYear({ page, email: new_user_email, year: 2015 })
+  })
 
-  it("Create new leave request", function(done){
+  it("Open calendar page", function () {
+    return open_page_func({
+      url: application_host + 'calendar/?show_full_year=1&year=2015',
+      page,
+    })
+  })
 
-    // This is very important line when working with Bootstrap modals!
-    driver.sleep(1000);
+  it("Open page to create new leave", function () {
+    return Promise.all([
+      new Promise(res => setTimeout(res, 250)),
+      page.waitForSelector('.modal-content'),
+      page.click('#book_time_off_btn')
+    ])
+  })
 
-    submit_form_func({
-      driver      : driver,
+  it("Create new leave request", function () {
+    return submit_form_func({
+      page,
       // The order matters here as we need to populate dropdown prior date filds
-      form_params : [{
-          selector        : 'select[name="from_date_part"]',
-          option_selector : 'option[value="2"]',
-          value           : "2",
-      },{
-          selector : 'input#from',
-          value : '2015-06-15',
-      },{
-          selector : 'input#to',
-          value : '2015-06-16',
+      form_params: [{
+        selector: 'select[name="from_date_part"]',
+        option_selector: 'option[value="2"]',
+        value: "2",
+      }, {
+        selector: 'input#from',
+        value: '2015-06-15',
+      }, {
+        selector: 'input#to',
+        value: '2015-06-16',
       }],
-      message : /New leave request was added/,
+      message: /New leave request was added/,
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it("Check that all days are marked as pended", function(done){
-    check_booking_func({
-      driver         : driver,
-      full_days      : [moment('2015-06-16')],
-      halfs_1st_days : [moment('2015-06-15')],
-      type           : 'pended',
+  it("Check that all days are marked as pended", function () {
+    return check_booking_func({
+      page,
+      full_days: [moment('2015-06-16')],
+      halfs_1st_days: [moment('2015-06-15')],
+      type: 'pended',
     })
-    .then(function(){ done() });
-  });
+  })
 
-  after(function(done){
-    driver.quit().then(function(){ done(); });
-  });
-});
+  after(function () {
+    return page.close()
+  })
+})

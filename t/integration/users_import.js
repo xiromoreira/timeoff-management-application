@@ -1,23 +1,18 @@
-
 'use strict';
 
 const
-  test                   = require('selenium-webdriver/testing'),
-  By                     = require('selenium-webdriver').By,
-  expect                 = require('chai').expect,
-  _                      = require('underscore'),
-  Promise                = require("bluebird"),
-  fs                     = Promise.promisifyAll(require('fs')),
-  csv                    = Promise.promisifyAll(require('csv')),
+  expect = require('chai').expect,
+  Promise = require("bluebird"),
+  fs = Promise.promisifyAll(require('fs')),
+  csv = Promise.promisifyAll(require('csv')),
   register_new_user_func = require('../lib/register_new_user'),
-  login_user_func        = require('../lib/login_with_user'),
-  logout_user_func       = require('../lib/logout_user'),
-  open_page_func         = require('../lib/open_page'),
-  submit_form_func       = require('../lib/submit_form'),
-  add_new_user_func      = require('../lib/add_new_user'),
-  config                 = require('../lib/config'),
-  user_info_func         = require('../lib/user_info'),
-  application_host       = config.get_application_host();
+  login_user_func = require('../lib/login_with_user'),
+  logout_user_func = require('../lib/logout_user'),
+  open_page_func = require('../lib/open_page'),
+  submit_form_func = require('../lib/submit_form'),
+  config = require('../lib/config'),
+  user_info_func = require('../lib/user_info'),
+  application_host = config.get_application_host();
 
 /*
  *  Scenario to check:
@@ -33,43 +28,39 @@ const
  * */
 
 
-describe('Bulk import of users', function(){
+describe.skip('Bulk import of users', function () {
 
-  this.timeout( config.get_execution_timeout() );
+  this.timeout(config.get_execution_timeout());
 
-  let email_admin,
-      driver,
-      csv_data,
-      sample_email,
-      test_users_filename =  __dirname +'/test.csv';
+  let page,
+    csv_data,
+    sample_email,
+    test_users_filename = __dirname + '/test.csv';
 
-  it('Create new company', function(done){
-    register_new_user_func({
-      application_host : application_host,
-    })
-    .then(data => {
-      driver = data.driver;
-      done();
+  it('Create new company', function () {
+    return register_new_user_func({
+      application_host,
+    }).then(data => {
+      page = data.page;
     });
   });
 
-  it('Navigate to bulk upload page', function(done){
-    open_page_func({
-      url    : application_host + 'users/import/',
-      driver : driver,
+  it('Navigate to bulk upload page', function () {
+    return open_page_func({
+      page,
+      url: application_host + 'users/import/',
     })
-    .then(function(){ done() });
   });
 
-  it('Create test .CSV file for the test', function(done){
+  it('Create test .CSV file for the test', function () {
     csv_data = [['email', 'name', 'lastname', 'department']];
 
     let token = (new Date()).getTime();
-    for (let i=0; i<10; i++){
+    for (let i = 0; i < 10; i++) {
       csv_data.push([
-        'test_csv_'+i+'_'+token+'@test.com',
-        'name_csv_'+i+'_'+token+'@test.com',
-        'lastname_csv_'+i+'_'+token+'@test.com',
+        'test_csv_' + i + '_' + token + '@test.com',
+        'name_csv_' + i + '_' + token + '@test.com',
+        'lastname_csv_' + i + '_' + token + '@test.com',
         'Sales'
       ]);
     }
@@ -77,90 +68,80 @@ describe('Bulk import of users', function(){
     // Safe one of the emails
     sample_email = csv_data[1][0];
 
-    Promise.resolve()
+    return Promise.resolve()
       .then(() => fs.unlinkAsync(test_users_filename))
       .catch(err => Promise.resolve())
-      .then(() => csv.stringifyAsync( csv_data ))
+      .then(() => csv.stringifyAsync(csv_data))
       .then(data => fs.writeFileAsync(test_users_filename, data))
-      .then(() => done());
   });
 
-  it('Upload user import file', function(done){
+  it('Upload user import file', function () {
     let regex = new RegExp(
       'Successfully imported users with following emails: '
       + csv_data.slice(1).map(it => it[0]).sort().join(', ')
     );
 
-    submit_form_func({
-      submit_button_selector : '#submit_users_btn',
-      driver : driver,
-      form_params : [{
-        selector : '#users_input_inp',
-        value    : test_users_filename,
-        file     : true,
+    return submit_form_func({
+      page,
+      submit_button_selector: '#submit_users_btn',
+      form_params: [{
+        selector: '#users_input_inp',
+        value: test_users_filename,
+        file: true,
       }],
-      message : regex,
+      message: regex,
     })
-    .then(() => done());
   });
 
-  it('Ensure that imported users are in the system', function(done){
+  it('Ensure that imported users are in the system', function () {
     let users_ids;
     // Get IDs of newly added users
-    Promise.map(csv_data.slice(1).map(it => it[0]), email => {
+    return Promise.map(csv_data.slice(1).map(it => it[0]), email => {
       return user_info_func({
-        driver : driver,
-        email : email,
+        page,
+        email: email,
       })
-      .then(data => data.user.id);
+        .then(data => data.user.id);
     })
-    // Open users page
-    .then(ids => {
-      users_ids = ids;
+      // Open users page
+      .then(ids => {
+        users_ids = ids;
 
-      return open_page_func({
-        url    : application_host + 'users/',
-        driver : driver,
-      });
-    })
-
-    // Ensure that IDs of newly added users are on th Users page
-    .then(() => Promise.map(users_ids, id => driver
-      .findElement(By.css('[data-vpp-user-row="'+id+'"]'))
-      .then(el => {
-        expect(el, 'Ensure that newly added user ID '+id+' exists on Users page')
-          .to.exists;
-        return Promise.resolve();
+        return open_page_func({
+          page,
+          url: application_host + 'users/',
+        });
       })
-    ))
 
-    .then(() => done());
+      // Ensure that IDs of newly added users are on th Users page
+      .then(() => Promise.map(users_ids, id => page
+        .$('[data-vpp-user-row="' + id + '"]').then(el => {
+          expect(el, 'Ensure that newly added user ID ' + id + ' exists on Users page')
+            .to.exists;
+        })
+      ))
+
   });
 
-  it("Logout from admin account", function(done){
-    logout_user_func({
-      application_host : application_host,
-      driver           : driver,
+  it("Logout from admin account", function () {
+    return logout_user_func({
+      application_host, page,
     })
-    .then(function(){done()});
   });
 
-  it('Now try to login as newly added employee using "undefined" as password..', done => {
-    login_user_func({
-      application_host : application_host,
-      user_email       : sample_email,
-      driver           : driver,
-      password         : 'undefined',
-      should_fail      : true,
+  it('Now try to login as newly added employee using "undefined" as password..', function () {
+    return login_user_func({
+      page, application_host,
+      user_email: sample_email,
+      password: 'undefined',
+      should_fail: true,
     })
-    .then(() => done());
   });
 
-  after(function(done){
-    Promise.resolve()
-      .then(() => driver.quit())
+  after(function () {
+    return Promise.resolve()
+      .then(() => page.close())
       .then(() => fs.unlinkAsync(test_users_filename))
-      .catch(err => Promise.resolve())
-      .then(() => done());
+      .catch(() => Promise.resolve())
   });
 });

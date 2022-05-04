@@ -1,136 +1,82 @@
 
 'use strict';
 
-var By        = require('selenium-webdriver').By,
-    expect    = require('chai').expect,
-    until     = require('selenium-webdriver').until,
-    _         = require('underscore'),
-    Promise   = require("bluebird"),
-    build_driver = require('./build_driver'),
-    driver;
+const get_page = require('./get_page');
 
+const expect = require('chai').expect;
 
-var login_with_user_func = Promise.promisify(function(args, callback){
+const login_with_user_func = async function (args) {
 
   var application_host = args.application_host,
-      user_email       = args.user_email,
-      result_callback  = callback,
-      password         = args.password || '123456',
-      should_fail      = args.should_fail || false;
+    user_email = args.user_email,
+    password = args.password || '123456',
+    should_fail = args.should_fail || false;
 
-  // Create new instance of driver
-  driver = args.driver || build_driver();
+  const page = await get_page(args);
 
   // Make sure we are in desktop version
-  driver.manage().window().setSize(1024, 768);
+  // page.manage().window().setSize(1024, 768);
 
-  // Open front page
-  driver.get( application_host );
-
-  driver.wait(until.elementLocated(By.css('h1')), 1000);
+  await page.goto(application_host);
+  await page.waitForSelector('h1');
 
   // Check that there is a login button
-  driver.findElement( By.css('a[href="/login/"]') )
-    .then(function(el){
-      return el.getText();
-    })
-    .then(function(text){
-      expect(text).to.be.equal('Login');
-    });
+  await page.$eval('a[href="/login/"]', el => el.innerText)
+    .then(text => expect(text).to.be.equal('Login'))
 
   // Click on Login button
-  driver.findElement( By.css('a[href="/login/"]') )
-    .then(function(el){
-      return el.click();
-    });
+  await page.click('a[href="/login/"]')
 
-  driver.wait(until.elementLocated(By.css('h1')), 1000);
+  await page.waitForSelector('h1')
 
   // Check that it is actually login page
-  driver.findElement( By.css('h1') )
-    .then(function(el){
-      return el.getText();
-    })
-    .then(function(text){
-      expect(text).to.be.equal('Login');
-    });
+  await page.$eval('h1', el => el.innerText)
+    .then(txt => expect(txt).to.be.equal('Login'))
 
   // Fill login form
-  Promise.all([
-    _.map(
-      [
-        {
-          selector : 'input[name="username"]',
-          value    : user_email,
-        },
-        {
-          selector : 'input[name="password"]',
-          value    : password,
-        },
-      ],
-      function( test_case ){
-        driver
-          .findElement(By.css( test_case.selector ))
-          .then(function(el){
-            el.sendKeys( test_case.value );
-          });
-      })
-  ]);
+  await Promise.all([
+    {
+      selector: 'input[name="username"]',
+      value: user_email,
+    },
+    {
+      selector: 'input[name="password"]',
+      value: password,
+    }
+  ].map(test_case => {
+    return page.$eval(test_case.selector, (el, val) => el.value = val, test_case.value)
+  }))
 
   // Submit login button
-  driver.findElement( By.css('#submit_login') )
-    .then(function(el){
-      el.click();
-    });
+  await Promise.all([
+    page.waitForNavigation(),
+    page.click('#submit_login')
+  ])
+
 
   if (should_fail) {
 
-    driver
-      .findElement(
-        By.css('div.alert-danger')
-      )
-      .then(function(el){
-        return el.getText();
-      })
-      .then(function(text){
-        expect(text).to.match(/Incorrect credentials/);
-      });
+    const text = await page.$eval('div.alert-danger', el => el.innerText)
+    expect(text).to.match(/Incorrect credentials/);
 
   } else {
-    driver.wait(until.elementLocated(By.css('div.alert-success')), 1000);
+    await page.waitForSelector('div.alert-success')
 
     // Make sure login was successful, check that we landed on user account page
-    driver.getTitle()
-      .then(function(title){
-          expect(title).to.be.equal('Calendar');
-      });
+    await page.title().then(title => {
+      expect(title).to.be.equal('Calendar');
+    })
 
-    driver
-      .findElement(
-        By.css('div.alert-success')
-      )
-      .then(function(el){
-        return el.getText();
-      })
-      .then(function(text){
+    await page.$eval('div.alert-success', el => el.innerText)
+      .then(text => {
         expect(text).to.match(/Welcome back/);
-      });
+      })
   }
 
 
   // Go back to the front page and pass data to the caller
-  driver.get( application_host )
-    .then(function(){
-      // "export" current driver
-      result_callback(
-        null,
-        {
-          driver : driver,
-        }
-      );
-    });
-});
+  await page.goto(application_host);
+  return { page }
+};
 
-module.exports = function(args){
-  return args.driver.call(function(){return login_with_user_func(args)});
-}
+module.exports = login_with_user_func;

@@ -1,23 +1,19 @@
 
-'use strict';
+'use strict'
 
 const
-  test                = require('selenium-webdriver/testing'),
-  By                  = require('selenium-webdriver').By,
-  until               = require('selenium-webdriver').until,
-  Promise             = require("bluebird"),
-  expect              = require('chai').expect,
-  moment              = require('moment'),
+  expect = require('chai').expect,
+  moment = require('moment'),
   registerNewUserFunc = require('../../lib/register_new_user'),
-  checkElementsFunc   = require('../../lib/check_elements'),
-  config              = require('../../lib/config'),
-  openPageFunc        = require('../../lib/open_page'),
-  submitFormFunc      = require('../../lib/submit_form'),
-  userInfoFunc        = require('../../lib/user_info'),
-  applicationHost     = config.get_application_host(),
-  companyEditFormId   = '#company_edit_form',
-  departmentEditFormId= '#department_edit_form',
-  userStartsAtTheBeginingOfYear = require('../../lib/set_user_to_start_at_the_beginning_of_the_year');
+  checkElementsFunc = require('../../lib/check_elements'),
+  config = require('../../lib/config'),
+  openPageFunc = require('../../lib/open_page'),
+  submitFormFunc = require('../../lib/submit_form'),
+  userInfoFunc = require('../../lib/user_info'),
+  applicationHost = config.get_application_host(),
+  companyEditFormId = '#company_edit_form',
+  departmentEditFormId = '#department_edit_form',
+  userStartsAtTheBeginingOfYear = require('../../lib/set_user_to_start_at_the_beginning_of_the_year')
 
 /*
  * Scenario:
@@ -31,149 +27,135 @@ const
  *
  * */
 
-describe('No negative allowanca is carried overs', function(){
+describe('No negative allowanca is carried overs', function () {
 
-  this.timeout( config.get_execution_timeout() );
+  this.timeout(config.get_execution_timeout())
 
-  let driver, email, userId;
+  let page, email, userId
 
-  it("Register new company", done => {
-    registerNewUserFunc({ applicationHost })
+  it("Register new company", function () {
+    return registerNewUserFunc({ applicationHost })
       .then(data => {
-        ({driver, email} = data);
-        done();
-      });
-  });
+        ({ page, email } = data)
+      })
+  })
 
-  it("Obtain information about admin user", done => {
-    userInfoFunc({ driver, email })
+  it("Obtain information about admin user", function () {
+    return userInfoFunc({ page, email })
       .then(data => {
-        userId = data.user.id;
-        done();
-      });
-  });
+        userId = data.user.id
+      })
+  })
 
-  it("Amend its user to started at the very begining of last year", done =>{
-    userStartsAtTheBeginingOfYear({
-      driver,
-      email,
-      overwriteDate:moment.utc().add(-1,'y').startOf('year'),
+  it("Amend its user to started at the very begining of last year", function () {
+    return userStartsAtTheBeginingOfYear({
+      page, email,
+      overwriteDate: moment.utc().add(-1, 'y').startOf('year'),
     })
-    .then(() => done())
-  });
+  })
 
-  it('Update user to have her leaves be auto apporved', done => {
-    openPageFunc({
-      driver,
+  it('Update user to have her leaves be auto apporved', function () {
+    return openPageFunc({
+      page,
       url: `${applicationHost}users/edit/${userId}/`,
     })
-    .then(() => submitFormFunc({
-      driver,
-      form_params : [{
-        selector : 'input[name="auto_approve"]',
-        tick     : true,
-        value    : 'on',
-      }],
-      submit_button_selector : 'button#save_changes_btn',
-      message : /Details for .+ were updated/,
-    }))
-    .then(() => done());
-  });
-
-  it("Add and approve week long leave in last year", done => {
-    const lastYear = moment.utc().add(-1,'y').year();
-
-    openPageFunc({driver, url: applicationHost})
-      .then(() => driver.findElement(By.css('#book_time_off_btn')))
-      .then(el => el.click())
-      .then(el => driver.sleep(1000))
       .then(() => submitFormFunc({
-        driver,
-        form_params : [{
-          selector : 'input#from',
-          value    : `${lastYear}-06-01`,
-        },{
-          selector : 'input#to',
-          value    : `${lastYear}-06-08`,
+        page,
+        form_params: [{
+          selector: 'input[name="auto_approve"]',
+          tick: true,
+          value: 'on',
         }],
-        message : /New leave request was added/,
+        submit_button_selector: 'button#save_changes_btn',
+        message: /Details for .+ were updated/,
       }))
-      .then(() => done());
-  });
+  })
 
-  it("Adjust user's deparment's allpwance to be 1 day", done => {
-    openPageFunc({
-      driver,
+  it("Add and approve week long leave in last year", async function () {
+    const lastYear = moment.utc().add(-1, 'y').year()
+    await openPageFunc({ page, url: applicationHost })
+    await Promise.all([
+      new Promise(res => setTimeout(res, 250)),
+      page.waitForSelector('.modal-content'),
+      page.click('#book_time_off_btn')
+    ])
+    return submitFormFunc({
+      page,
+      form_params: [{
+        selector: 'input#from',
+        value: `${lastYear}-06-01`,
+      }, {
+        selector: 'input#to',
+        value: `${lastYear}-06-08`,
+      }],
+      message: /New leave request was added/,
+    })
+  })
+
+  it("Adjust user's deparment's allpwance to be 1 day", async function () {
+    await openPageFunc({
+      page,
       url: `${applicationHost}settings/departments/`,
     })
-    .then(() => driver.findElements(By.css('a[href*="/settings/departments/edit/"]')))
-    .then(links => links[0].click())
-    .then(() => submitFormFunc({
-      driver,
-      form_params : [{
-        selector:        `${departmentEditFormId} select[name="allowance"]`,
+    await Promise.all([
+      page.waitForNavigation(),
+      page.click('a[href*="/settings/departments/edit/"]')
+    ])
+    await submitFormFunc({
+      page,
+      form_params: [{
+        selector: `${departmentEditFormId} select[name="allowance"]`,
         option_selector: 'option[value="1"]',
-        value:           '1',
+        value: '1',
       }],
-      submit_button_selector : `${departmentEditFormId} button[type="submit"]`,
-      message : /Department .* was updated/,
-      should_be_successful : true,
-    }))
-    .then(() => done());
-  });
+      submit_button_selector: `${departmentEditFormId} button[type="submit"]`,
+      message: /Department .* was updated/,
+      should_be_successful: true,
+    })
+  })
 
-  it('Ensure that nominal allowance was reduced to 1', done => {
-    openPageFunc({
-      driver,
+  it('Ensure that nominal allowance was reduced to 1', async function () {
+    await openPageFunc({
+      page,
       url: `${applicationHost}users/edit/${userId}/absences/`,
     })
-    .then(() => driver.findElement(By.css('#nominalAllowancePart')))
-    .then(el => el.getText())
-    .then(text => {
-      expect(text).to.be.eq('1');
-      done();
-    })
-  });
+    const text = await page.$eval('#nominalAllowancePart', e => e.innerText.trim())
+    expect(text).to.be.eq('1')
+  })
 
-  it('Ensure that company has Carry Over set to be "None"', done => {
-    openPageFunc({
-      driver,
-      url : `${applicationHost}settings/general/`,
+  it('Ensure that company has Carry Over set to be "None"', async function () {
+    await openPageFunc({
+      page,
+      url: `${applicationHost}settings/general/`,
     })
-    .then(() => checkElementsFunc({
-      driver,
-      elements_to_check : [{
+    await checkElementsFunc({
+      page,
+      elements_to_check: [{
         selector: `${companyEditFormId} select[name="carry_over"]`,
         value: '0',
       }],
-    }))
-    .then(() => done());
-  });
+    })
+  })
 
-  it('Calculate carry over', done => {
-    submitFormFunc({
-      driver,
+  it('Calculate carry over', function () {
+    return submitFormFunc({
+      page,
       submit_button_selector: '#calculate_carry_over_form button[type="submit"]',
       message: /allowance was successfully carried over/i,
       should_be_successful: true,
     })
-    .then(() => done());
-  });
+  })
 
-  it("Ensure that newly created user's carried over still remains 0", done => {
-    openPageFunc({
-      driver,
-      url : `${applicationHost}users/edit/${userId}/absences/`,
+  it("Ensure that newly created user's carried over still remains 0", async function () {
+    await openPageFunc({
+      page,
+      url: `${applicationHost}users/edit/${userId}/absences/`,
     })
-    .then(() => driver.findElement( By.css('#allowanceCarriedOverPart') ))
-    .then(span => span.getText())
-    .then(text => {
-      expect( text ).to.be.eq('0');
-      done();
-    });
-  });
+    const text = await page.$eval('#allowanceCarriedOverPart', e => e.innerText.trim())
+    expect(text).to.be.eq('0')
+  })
 
-  after(done => {
-    driver.quit().then(() => done());
-  });
-});
+  after(function () {
+    return page.close()
+  })
+})

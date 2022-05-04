@@ -1,22 +1,18 @@
 
-'use strict';
+'use strict'
 
-var test                 = require('selenium-webdriver/testing'),
-  By                     = require('selenium-webdriver').By,
-  until                  = require('selenium-webdriver').until,
-  Promise                = require("bluebird"),
-  expect                 = require('chai').expect,
-  add_new_user_func      = require('../../lib/add_new_user'),
-  check_elements_func    = require('../../lib/check_elements'),
-  config                 = require('../../lib/config'),
-  login_user_func        = require('../../lib/login_with_user'),
-  logout_user_func       = require('../../lib/logout_user'),
-  open_page_func         = require('../../lib/open_page'),
+const
+  expect = require('chai').expect,
+  add_new_user_func = require('../../lib/add_new_user'),
+  config = require('../../lib/config'),
+  login_user_func = require('../../lib/login_with_user'),
+  logout_user_func = require('../../lib/logout_user'),
+  open_page_func = require('../../lib/open_page'),
   register_new_user_func = require('../../lib/register_new_user'),
-  submit_form_func       = require('../../lib/submit_form'),
-  user_info_func         = require('../../lib/user_info'),
-  application_host       = config.get_application_host(),
-  some_weekday_date      = '2015-06-17';
+  submit_form_func = require('../../lib/submit_form'),
+  user_info_func = require('../../lib/user_info'),
+  application_host = config.get_application_host(),
+  some_weekday_date = '2015-06-17'
 
 /*
  *  Scenario:
@@ -38,330 +34,259 @@ var test                 = require('selenium-webdriver/testing'),
  *
  * */
 
-describe('Auto approvals', function(){
+describe('Auto approvals', function () {
 
-  this.timeout( config.get_execution_timeout() );
+  this.timeout(config.get_execution_timeout())
 
-  var driver, email_A, email_B, user_id_A, user_id_B;
+  var page, email_A, email_B, user_id_A, user_id_B
 
-  it("Register new company", function(done){
-    register_new_user_func({
-      application_host : application_host,
+  it("Register new company", function () {
+    return register_new_user_func({
+      application_host,
+    }).then(data => {
+      page = data.page
+      email_A = data.email
     })
-    .then(function(data){
-      driver  = data.driver;
-      email_A = data.email;
-      done();
-    });
-  });
+  })
 
-  it("Create second user B", function(done){
-    add_new_user_func({
-      application_host : application_host,
-      driver           : driver,
+  it("Create second user B", function () {
+    return add_new_user_func({
+      application_host, page,
+    }).then(data => {
+      email_B = data.new_user_email
     })
-    .then(function(data){
-      email_B = data.new_user_email;
-      done();
-    });
-  });
+  })
 
-  it("Obtain information about admin user A", function(done){
-    user_info_func({
-      driver : driver,
-      email  : email_A,
+  it("Obtain information about admin user A", function () {
+    return user_info_func({
+      page,
+      email: email_A,
+    }).then(data => {
+      user_id_A = data.user.id
     })
-    .then(function(data){
-      user_id_A = data.user.id;
-      done();
-    });
-  });
+  })
 
-  it("Obtain information about user B", function(done){
-    user_info_func({
-      driver : driver,
-      email  : email_B,
+  it("Obtain information about user B", function () {
+    return user_info_func({
+      page,
+      email: email_B,
+    }).then(data => {
+      user_id_B = data.user.id
     })
-    .then(function(data){
-      user_id_B = data.user.id;
-      done();
-    });
-  });
+  })
 
-  it("Open details page for user B", function(done){
-    open_page_func({
-      url    : application_host + 'users/edit/'+user_id_B+'/',
-      driver : driver,
+  it("Open details page for user B", function () {
+    return open_page_func({
+      url: application_host + 'users/edit/' + user_id_B + '/',
+      page,
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it('Update settings to make all its leave requests auto approved', function(done){
-    submit_form_func({
-      driver      : driver,
-      form_params : [{
-        selector : 'input[name="auto_approve"]',
-        tick     : true,
-        value    : 'on',
+  it('Update settings to make all its leave requests auto approved', function () {
+    return submit_form_func({
+      page,
+      form_params: [{
+        selector: 'input[name="auto_approve"]',
+        tick: true,
+        value: 'on',
       }],
-      submit_button_selector : 'button#save_changes_btn',
-      message : /Details for .+ were updated/,
+      submit_button_selector: 'button#save_changes_btn',
+      message: /Details for .+ were updated/,
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it("Logout from admin user", function(done){
-    logout_user_func({
-      application_host : application_host,
-      driver           : driver,
+  it("Logout from admin user", function () {
+    return logout_user_func({
+      application_host,
+      page,
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it("Login as regular user B", function(done){
-    login_user_func({
-      application_host : application_host,
-      user_email       : email_B,
-      driver           : driver,
+  it("Login as regular user B", function () {
+    return login_user_func({
+      application_host,
+      user_email: email_B,
+      page,
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it("Open Book leave popup window", function(done){
-    driver.findElement(By.css('#book_time_off_btn'))
-      .then(function(el){ return el.click() })
-      .then(function(el){
-        // This is very important line when working with Bootstrap modals!
-        return driver.sleep(1000);
-      })
-      .then(function(){ done() });
-  });
+  it("Open Book leave popup window", function () {
+    return Promise.all([
+      new Promise(res => setTimeout(res, 250)),
+      page.waitForSelector('.modal-content'),
+      page.click('#book_time_off_btn')
+    ])
+  })
 
-  it("Submit new leave requesti from user B", function(done){
-    submit_form_func({
-      driver      : driver,
-      form_params : [{
-        selector : 'input#from',
-        value    : some_weekday_date,
-      },{
-        selector : 'input#to',
-        value    : some_weekday_date,
+  it("Submit new leave requesti from user B", function () {
+    return submit_form_func({
+      page,
+      form_params: [{
+        selector: 'input#from',
+        value: some_weekday_date,
+      }, {
+        selector: 'input#to',
+        value: some_weekday_date,
       }],
-      message : /New leave request was added/,
+      message: /New leave request was added/,
     })
-    .then(function(){done()});
-  });
+  })
 
-  it("Open requests page", function( done ){
-    open_page_func({
-      url    : application_host + 'requests/',
-      driver : driver,
+  it("Open requests page", function () {
+    return open_page_func({
+      url: application_host + 'requests/',
+      page,
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it("Ensure that new leave went straight to Approved status", function(done){
-    driver
-      .findElements(By.css( 'tr.leave-request-row .leave-request-row-status' ))
-      .then(function(elements){
-        expect(elements.length).to.be.eq(1);
-        return elements[0].getText();
-      })
-      .then(function(status){
-        expect( status ).to.be.eq('Approved');
-        done();
-      });
-  });
+  it("Ensure that new leave went straight to Approved status", async function () {
+    const texts = await page.$$eval('tr.leave-request-row .leave-request-row-status', l =>
+      l.map(e => e.innerText.trim())
+    )
+    expect(texts.length).to.be.eq(1)
+    expect(texts[0]).to.be.eq('Approved')
+  })
 
-  it("Logout from user B", function(done){
-    logout_user_func({
-      application_host : application_host,
-      driver           : driver,
+  it("Logout from user B", function () {
+    return logout_user_func({
+      application_host, page,
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it("Login as admin user A", function(done){
-    login_user_func({
-      application_host : application_host,
-      user_email       : email_A,
-      driver           : driver,
+  it("Login as admin user A", function () {
+    return login_user_func({
+      application_host,
+      user_email: email_A,
+      page,
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it("Open requests page", function( done ){
-    open_page_func({
-      url    : application_host + 'requests/',
-      driver : driver,
+  it("Open requests page", function () {
+    return open_page_func({
+      url: application_host + 'requests/',
+      page,
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it('Ensure that there is no pending leave requests', function(done){
-    driver
-      .findElements(By.css( '.btn-warning' ))
-      .then(function(elements){
-        expect( elements.length ).to.be.eq(0);
-        done();
-      })
-  });
+  it('Ensure that there is no pending leave requests', function () {
+    return page.$$('.btn-warning').then(elements =>
+      expect(elements.length).to.be.eq(0)
+    )
+  })
 
-  it("Open email audit page", function( done ){
-    open_page_func({
-      url    : application_host + 'audit/email/',
-      driver : driver,
+  it("Open email audit page", function () {
+    return open_page_func({
+      url: application_host + 'audit/email/',
+      page,
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it('Ensure there were two emails regarding auto-approved leaves', function(done){
-    driver
-      .findElements( By.css('tr.vpp-email-audit-entry-header a.collapsed') )
-      .then(function(elements){
-        return Promise.map(
-          [elements[0], elements[1]],
-          function(el){ return el.getText() }
-        );
-      })
-      .then(function(subjects){
-        expect(subjects).to.contain('New leave was added and auto approved.');
-        expect(subjects).to.contain('New leave was added');
-        done();
-      })
-  });
-
-  it("Logout from admin user", function(done){
-    logout_user_func({
-      application_host : application_host,
-      driver           : driver,
+  it('Ensure there were two emails regarding auto-approved leaves', function () {
+    page.$$eval('tr.vpp-email-audit-entry-header a.collapsed', list => [
+      list[0].innerText.trim(),
+      list[1].innerText.trim()
+    ]).then(subjects => {
+      expect(subjects).to.contain('New leave was added and auto approved.')
+      expect(subjects).to.contain('New leave was added')
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it("Login as regular user B", function(done){
-    login_user_func({
-      application_host : application_host,
-      user_email       : email_B,
-      driver           : driver,
+  it("Logout from admin user", function () {
+    return logout_user_func({
+      application_host, page,
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it("Open requests page", function(done){
-    open_page_func({
-      url    : application_host + 'requests/',
-      driver : driver,
+  it("Login as regular user B", function () {
+    return login_user_func({
+      application_host,
+      user_email: email_B,
+      page,
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it('Revoke request', function(done){
-    driver
-      .findElement(By.css(
-        'button.revoke-btn'
-      ))
-      .then(function(el){ return el.click(); })
-      .then(function(){
-        // Wait until page properly is reloaded
-        return driver.wait(until.elementLocated(By.css('h1')), 1000);
-      })
-      .then(function(){
-        return driver.findElement( By.css('.alert-success')  )
-          .then(function(el){
-            expect(el).to.be.ok;
-            return Promise.resolve(1);
-          })
-      })
-      .then(function(){ done() });
-  });
-
-  it("Ensure that it is gone without need to be approved", function(done){
-    driver
-      .findElements(By.css( 'tr.leave-request-row .leave-request-row-status' ))
-      .then(function(elements){
-        expect(elements.length).to.be.eq(0);
-        done();
-      });
-  });
-
-  it("Logout from user B", function(done){
-    logout_user_func({
-      application_host : application_host,
-      driver           : driver,
+  it("Open requests page", function () {
+    return open_page_func({
+      url: application_host + 'requests/',
+      page,
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it("Login as admin user A", function(done){
-    login_user_func({
-      application_host : application_host,
-      user_email       : email_A,
-      driver           : driver,
+  it('Revoke request', async function () {
+    await Promise.all([
+      page.waitForSelector('h1'),
+      page.waitForNavigation(),
+      page.click('button.revoke-btn')
+    ])
+    const el = await page.$('.alert-success')
+    expect(el).to.be.exist
+  })
+
+  it("Ensure that it is gone without need to be approved", function () {
+    return page.$$('tr.leave-request-row .leave-request-row-status').then(elements =>
+      expect(elements.length).to.be.eq(0)
+    )
+  })
+
+  it("Logout from user B", function () {
+    return logout_user_func({
+      application_host, page,
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it('Open user B absences section', function(done){
-    open_page_func({
-      url    : application_host + 'users/edit/'+user_id_B+'/absences/',
-      driver : driver,
+  it("Login as admin user A", function () {
+    return login_user_func({
+      application_host,
+      user_email: email_A,
+      page,
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it("Ensure that user B does not have any leaves", function(done){
-    driver
-      .findElements(By.css( 'tr.leave-request-row .leave-request-row-status' ))
-      .then(function(elements){
-        expect(elements.length).to.be.eq(0);
-        done();
-      });
-  });
-
-  it("Open requests page", function( done ){
-    open_page_func({
-      url    : application_host + 'requests/',
-      driver : driver,
+  it('Open user B absences section', function () {
+    return open_page_func({
+      url: application_host + 'users/edit/' + user_id_B + '/absences/',
+      page,
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it('Ensure that there is no pending leave requests', function(done){
-    driver
-      .findElements(By.css( '.btn-warning' ))
-      .then(function(elements){
-        expect( elements.length ).to.be.eq(0);
-        done();
-      })
-  });
+  it("Ensure that user B does not have any leaves", function () {
+    return page.$$('tr.leave-request-row .leave-request-row-status').then(elements =>
+      expect(elements.length).to.be.eq(0)
+    )
+  })
 
-  it("Open email audit page", function( done ){
-    open_page_func({
-      url    : application_host + 'audit/email/',
-      driver : driver,
+  it("Open requests page", function () {
+    return open_page_func({
+      page,
+      url: application_host + 'requests/',
     })
-    .then(function(){ done() });
-  });
+  })
 
-  it('Ensure there were two emails regarding auto-approved leaves', function(done){
-    driver
-      .findElements( By.css('tr.vpp-email-audit-entry-header a.collapsed') )
-      .then(function(elements){
-        return Promise.map(
-          [elements[0], elements[1]],
-          function(el){ return el.getText() }
-        );
-      })
-      .then(function(subjects){
-        expect(subjects).to.contain('Leave was revoked and auto approved');
-        expect(subjects).to.contain('Leave was revoked');
-        done();
-      })
-  });
+  it('Ensure that there is no pending leave requests', function () {
+    return page.$$('btn-warning').then(elements =>
+      expect(elements.length).to.be.eq(0)
+    )
+  })
 
-  after(function(done){
-    driver.quit().then(function(){ done(); });
-  });
+  it("Open email audit page", function () {
+    return open_page_func({
+      page,
+      url: application_host + 'audit/email/',
+    })
+  })
 
-});
+  it('Ensure there were two emails regarding auto-approved leaves', async function () {
+    const elements = await page.$$('tr.vpp-email-audit-entry-header a.collapsed')
+    const subjects = await Promise.all([
+      elements[0].getProperty('innerText').then(p => p.jsonValue()),
+      elements[1].getProperty('innerText').then(p => p.jsonValue())
+    ])
+    expect(subjects).to.contain('Leave was revoked and auto approved')
+    expect(subjects).to.contain('Leave was revoked')
+  })
+
+  after(function () {
+    return page.close()
+  })
+
+})

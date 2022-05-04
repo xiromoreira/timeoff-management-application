@@ -1,24 +1,18 @@
 
 'use strict';
 
-var test                 = require('selenium-webdriver/testing'),
-  By                     = require('selenium-webdriver').By,
-  expect                 = require('chai').expect,
-  _                      = require('underscore'),
-  moment                 = require('moment'),
-  bluebird               = require("bluebird"),
-  until                  = require('selenium-webdriver').until,
+const expect = require('chai').expect,
+  moment = require('moment'),
   register_new_user_func = require('../lib/register_new_user'),
-  login_user_func        = require('../lib/login_with_user'),
-  open_page_func         = require('../lib/open_page'),
-  submit_form_func       = require('../lib/submit_form'),
-  add_new_user_func      = require('../lib/add_new_user'),
-  logout_user_func       = require('../lib/logout_user'),
-  check_elements_func    = require('../lib/check_elements'),
-  teamview_check_func    = require('../lib/teamview_check_user'),
-  user_info_func         = require('../lib/user_info'),
-  config                 = require('../lib/config'),
-  application_host       = config.get_application_host(),
+  login_user_func = require('../lib/login_with_user'),
+  open_page_func = require('../lib/open_page'),
+  submit_form_func = require('../lib/submit_form'),
+  add_new_user_func = require('../lib/add_new_user'),
+  logout_user_func = require('../lib/logout_user'),
+  teamview_check_func = require('../lib/teamview_check_user'),
+  user_info_func = require('../lib/user_info'),
+  config = require('../lib/config'),
+  application_host = config.get_application_host(),
   department_edit_form_id = '#department_edit_form';
 
 /*
@@ -40,255 +34,202 @@ var test                 = require('selenium-webdriver/testing'),
  *
  * */
 
-describe('Dealing with inactive users', function(){
+describe('Dealing with inactive users', function () {
 
-  this.timeout( config.get_execution_timeout() );
+  this.timeout(config.get_execution_timeout());
 
-  var email_admin   , admin_user_id,
-      email_manager, manager_user_id,
-      email_employee, employee_user_id,
-      employee_id, driver;
+  var email_admin, email_manager, email_employee, employee_id, page;
 
-  it('Create new company', function(done){
-    register_new_user_func({
-      application_host : application_host,
-    })
-    .then(function(data){
-      driver = data.driver;
+  it('Create new company', function () {
+    return register_new_user_func({
+      application_host,
+    }).then(data => {
+      page = data.page;
       email_admin = data.email;
-      done();
     });
   });
 
-  it("Create MANAGER", function(done){
-    add_new_user_func({
-      application_host : application_host,
-      driver           : driver,
-    })
-    .then(function(data){
+  it("Create MANAGER", function () {
+    return add_new_user_func({
+      application_host,
+      page,
+    }).then(data => {
       email_manager = data.new_user_email;
-      done();
     });
   });
 
-  it("Create EMPLOYEE", function(done){
-    add_new_user_func({
-      application_host : application_host,
-      driver           : driver,
-    })
-    .then(function(data){
+  it("Create EMPLOYEE", function () {
+    return add_new_user_func({
+      application_host, page,
+    }).then(data => {
       email_employee = data.new_user_email;
-      done();
     });
   });
 
-  it("Open department management page", function(done){
-    open_page_func({
-      url    : application_host + 'settings/departments/',
-      driver : driver,
+  it("Open department management page", function () {
+    return open_page_func({
+      url: application_host + 'settings/departments/',
+      page,
     })
-    .then(function(){ done() });
   });
 
-  it('Update department to be supervised by MANAGER', function(done){
-    open_page_func({
-      url    : application_host + 'settings/departments/',
-      driver : driver,
+  it('Update department to be supervised by MANAGER', async function () {
+    await open_page_func({
+      url: application_host + 'settings/departments/',
+      page,
     })
-    .then(() => driver
-      .findElements(By.css('a[href*="/settings/departments/edit/"]'))
-      .then(links => links[0].click())
-    )
-    .then(() => submit_form_func({
-      driver      : driver,
-      form_params : [{
-        selector : 'input[name="name"]',
+
+    const links = await page.$$('a[href*="/settings/departments/edit/"]')
+    await Promise.all([
+      page.waitForNavigation(),
+      links[0].click(),
+    ])
+    await submit_form_func({
+      page,
+      form_params: [{
+        selector: 'input[name="name"]',
         // Just to make sure it is always first in the lists
-        value : 'AAAAA',
-      },{
-        selector        : 'select[name="allowance"]',
-        option_selector : 'option[value="15"]',
-        value : '15',
-      },{
-        selector        : 'select[name="boss_id"]',
-        option_selector : 'select[name="boss_id"] option:nth-child(2)',
+        value: 'AAAAA',
+      }, {
+        selector: 'select[name="allowance"]',
+        option_selector: 'option[value="15"]',
+        value: '15',
+      }, {
+        selector: 'select[name="boss_id"]',
+        option_selector: 'option:nth-child(2)',
       }],
-        submit_button_selector : department_edit_form_id+' button[type="submit"]',
-        message : /Department .* was updated/,
-    }))
-    .then(() => done());
+      submit_button_selector: department_edit_form_id + ' button[type="submit"]',
+      message: /Department .* was updated/,
+    })
   });
 
-  it("Make sure EMPLOYEE shows up on the Team view page", function(done){
-    teamview_check_func({
-      driver  : driver,
-      emails  : [email_admin, email_manager, email_employee],
-      is_link : true,
+  it("Make sure EMPLOYEE shows up on the Team view page", function () {
+    return teamview_check_func({
+      page,
+      emails: [email_admin, email_manager, email_employee],
+      is_link: true,
     })
-    .then(function(){ done() });
   });
 
-  it("Open departments management page", function(done){
-    open_page_func({
-      url    : application_host + 'settings/departments/',
-      driver : driver,
+  it("Open departments management page", function () {
+    return open_page_func({
+      url: application_host + 'settings/departments/',
+      page,
     })
-    .then(function(){ done() });
   });
 
-  it("obtain detailed info about employee (ID etc)", function(done){
-    user_info_func({
-      driver : driver,
-      email  : email_employee,
-    })
-    .then(function(data){
+  it("obtain detailed info about employee (ID etc)", function () {
+    return user_info_func({
+      page,
+      email: email_employee,
+    }).then(data => {
       employee_id = data.user.id;
-      done();
     });
   });
 
-  it("See if EMPLOYEE is among possible approvers", function(done){
-    driver.findElements(By.css(
-      'select[name="boss_id__new"] option[value="'+employee_id+'"]'
-    ))
-    .then(function(option){
-      expect(option).to.be.not.empty;
-      done();
-    });
+  it("See if EMPLOYEE is among possible approvers", async function () {
+    const options = await page.$$('select[name="boss_id__new"] option[value="' + employee_id + '"]')
+    expect(options).to.be.not.empty;
   });
 
-  it("Logout from admin account", function(done){
-    logout_user_func({
-      application_host : application_host,
-      driver           : driver,
+  it("Logout from admin account", function () {
+    return logout_user_func({
+      application_host,
+      page,
     })
-    .then(function(){ done() });
   });
 
-  it('Login as an EMPLOYEE to make sure it is possible', function(done){
-    login_user_func({
-      application_host : application_host,
-      user_email       : email_employee,
-      driver           : driver,
+  it('Login as an EMPLOYEE to make sure it is possible', function () {
+    return login_user_func({
+      application_host, page,
+      user_email: email_employee,
     })
-    .then(function(){ done() });
   });
 
-  it("Logout from EMPLOYEE account", function(done){
-    logout_user_func({
-      application_host : application_host,
-      driver           : driver,
+  it("Logout from EMPLOYEE account", function () {
+    return logout_user_func({
+      application_host, page,
     })
-    .then(function(){ done() });
   });
 
-  it('Login back as ADMIN', function(done){
-    login_user_func({
-      application_host : application_host,
-      user_email       : email_admin,
-      driver           : driver,
+  it('Login back as ADMIN', function () {
+    return login_user_func({
+      application_host, page,
+      user_email: email_admin,
     })
-    .then(function(){ done() });
   });
 
-  it('Open employee details page', function(done){
-    open_page_func({
-      url    : application_host + 'users/edit/'+employee_id+'/',
-      driver : driver,
+  it('Open employee details page', function () {
+    return open_page_func({
+      url: application_host + 'users/edit/' + employee_id + '/',
+      page,
     })
-    .then(function(){ done() });
   });
 
-  it("Mark EMPLOYEE as one inactive one by specifying end date to be in past", function(done){
-    submit_form_func({
-      driver      : driver,
-      form_params : [{
-        selector : 'input#end_date_inp',
-        value    : moment().subtract(1, 'days').format('YYYY-MM-DD'),
+  it("Mark EMPLOYEE as one inactive one by specifying end date to be in past", function () {
+    return submit_form_func({
+      page,
+      form_params: [{
+        selector: 'input#end_date_inp',
+        value: moment().subtract(1, 'days').format('YYYY-MM-DD'),
       }],
-      submit_button_selector : 'button#save_changes_btn',
-      message : /Details for .+ were updated/,
+      submit_button_selector: 'button#save_changes_btn',
+      message: /Details for .+ were updated/,
     })
-    .then(function(){ done() });
   });
 
-  it("Make sure EMPLOYEE is not on Team view page anymore", function(done){
-    teamview_check_func({
-      driver  : driver,
-      emails  : [email_admin, email_manager],
-      is_link : true,
+  it("Make sure EMPLOYEE is not on Team view page anymore", function () {
+    return teamview_check_func({
+      page,
+      emails: [email_admin, email_manager],
+      is_link: true,
     })
-    .then(function(){ done() });
   });
 
-  it("Open users list page", function(done){
-    open_page_func({
-      url    : application_host + 'users/',
-      driver : driver,
+  it("Open users list page", function () {
+    return open_page_func({
+      url: application_host + 'users/',
+      page,
     })
-    .then(function(){ done() });
   });
 
-  it('Make sure that EMPLOYEE still is shown on users page decpite being inactive', function(done){
-    driver
-      .findElements(By.css( 'td.user_department' ))
-      .then(function(elements){
-        expect(elements.length).to.be.equal(3);
-        done();
-      });
+  it('Make sure that EMPLOYEE still is shown on users page despite being inactive', async function () {
+    const els = await page.$$('td.user_department')
+    expect(els.length).to.be.equal(3)
   });
 
-  it('Check that employee is striked in the list', function(done) {
-    driver.
-      findElement(By.css('a[href="/users/edit/'+employee_id+'/"]'))
-      .then(el => el.findElements(By.tagName("s")))
-      .then(els => {
-        if (els.length === 1) {
-          done();
-        } else {
-          throw new Error("User is not striked")
-        }
-      })
+  it('Check that employee is striked in the list', async function () {
+    const els = await page.$$('a[href="/users/edit/' + employee_id + '/"] s')
+    expect(els.length).to.be.eql(1, 'User is not striked')
   });
 
-  it("Open department settings page", function(done){
-    open_page_func({
-      url    : application_host + 'settings/departments/',
-      driver : driver,
+  it("Open department settings page", function () {
+    return open_page_func({
+      url: application_host + 'settings/departments/',
+      page,
     })
-    .then(function(){ done() });
   });
 
-  it("Try to add new department and make sure that EMPLOYEE is not among potentual approvers", function(done){
-    driver
-      .findElements(By.css(
-        'select[name="boss_id__new"] option[value="'+employee_id+'"]'
-      ))
-      .then(function(option){
-        expect(option).to.be.empty;
-        done();
-      });
+  it("Try to add new department and make sure that EMPLOYEE is not among potentual approvers", async function () {
+    const els = await page.$$('select[name="boss_id__new"] option[value="' + employee_id + '"]')
+    expect(els).to.be.empty
   });
 
-  it("Logout from admin account", function(done){
-    logout_user_func({
-      application_host : application_host,
-      driver           : driver,
+  it("Logout from admin account", function () {
+    return logout_user_func({
+      application_host, page,
     })
-    .then(function(){ done() });
   });
 
-  it("Try to login as EMPLOYEE and make sure system rejects", function(done){
-    login_user_func({
-      application_host : application_host,
-      user_email       : email_employee,
-      driver           : driver,
-      should_fail      : true,
+  it("Try to login as EMPLOYEE and make sure system rejects", function () {
+    return login_user_func({
+      application_host, page,
+      user_email: email_employee,
+      should_fail: true,
     })
-    .then(function(){ done() });
   });
 
-  after(function(done){
-    driver.quit().then(function(){ done(); });
+  after(function () {
+    return page.close()
   });
 });

@@ -2,22 +2,18 @@
 'use strict';
 
 
-var test                 = require('selenium-webdriver/testing'),
-  By                     = require('selenium-webdriver').By,
-  expect                 = require('chai').expect,
-  Promise                = require("bluebird"),
-  until                  = require('selenium-webdriver').until,
-  _                      = require('underscore'),
+const
+  expect = require('chai').expect,
   register_new_user_func = require('../../lib/register_new_user'),
-  login_user_func        = require('../../lib/login_with_user'),
-  open_page_func         = require('../../lib/open_page'),
-  submit_form_func       = require('../../lib/submit_form'),
-  add_new_user_func      = require('../../lib/add_new_user'),
-  logout_user_func       = require('../../lib/logout_user'),
-  config                 = require('../../lib/config'),
+  login_user_func = require('../../lib/login_with_user'),
+  open_page_func = require('../../lib/open_page'),
+  submit_form_func = require('../../lib/submit_form'),
+  add_new_user_func = require('../../lib/add_new_user'),
+  logout_user_func = require('../../lib/logout_user'),
+  config = require('../../lib/config'),
   new_department_form_id = '#add_new_department_form',
-  application_host       = config.get_application_host(),
-  company_edit_form_id   ='#company_edit_form',
+  application_host = config.get_application_host(),
+  company_edit_form_id = '#company_edit_form',
   department_edit_form_id = '#department_edit_form';
 
 /*
@@ -47,330 +43,264 @@ var test                 = require('selenium-webdriver/testing'),
 
 // Helper function to check that provided users (email) are shown on the Team view
 // page
-function check_teamview(data, emails){
+async function check_teamview(data, emails) {
 
-  return open_page_func({
-    url    : application_host + 'calendar/teamview/',
-    driver : data.driver,
+  await open_page_func({
+    url: application_host + 'calendar/teamview/',
+    page: data.page,
   })
-  .then(function(data){
-    var promise_to_check = data.driver
-      .findElements(By.css( 'tr.teamview-user-list-row > td.left-column-cell' ))
 
-      // Make sure that number of users is as expected
-      .then(function(elements){
+  // Make sure that number of users is as expected
+  const elements = await data.page.$$('tr.teamview-user-list-row > td.left-column-cell')
+  expect(elements.length).to.be.equal(emails.length);
 
-        expect(elements.length).to.be.equal( emails.length );
+  // Make sure that users are actually those as expected
+  const full_names = await Promise.all(elements.map(e => e.getProperty('innerText').then(p => p.jsonValue())))
+  // The idea is to extract unique tokens from provided emails
+  const tokens_from_emails = emails.map(email => email.substring(0, email.lastIndexOf("@"))).sort()
+  // ... extract unique tokens from full names on the page
+  const tokens_from_name = full_names.map(name => name.substring(4, name.lastIndexOf(" "))).sort()
+  // ... and make sure that they are matched
+  expect(tokens_from_emails).to.be.eql(tokens_from_name);
 
-        return Promise.all(_.map(elements, function(el){ return el.getText();  }));
-      })
-
-      // Make sure that users are actually those as expected
-      .then(function(full_names){
-
-        // The idea is to extract unique tokens from provided emails
-        var tokens_from_emails = _.map(emails, function(email){
-          return email.substring(0, email.lastIndexOf("@"));
-        }).sort();
-
-        // ... extract unique tokens from full names on the page
-        var tokens_from_name = _.map(full_names, function(name){
-          return name.substring(4, name.lastIndexOf(" "));
-        }).sort();
-
-        // ... and make sure that they are matched
-        expect( tokens_from_emails ).to.be.eql(tokens_from_name);
-
-        return Promise.resolve(data);
-      });
-
-    return promise_to_check;
-  });
 };
 
-describe('Check basic scenario for Team view page', function(){
+describe('Check basic scenario for Team view page', function () {
 
-  this.timeout( config.get_execution_timeout() );
+  this.timeout(config.get_execution_timeout());
 
-  var driver, user_A, user_B, user_C;
+  var page, user_A, user_B, user_C;
 
-  test.it('Performing registration process', function( done ){
-    register_new_user_func({
-      application_host : application_host,
-    })
-    .then(function(data){
-      driver = data.driver;
+  it('Performing registration process', function () {
+    return register_new_user_func({
+      application_host,
+    }).then(data => {
+      page = data.page;
       user_A = data.email;
-      done();
     });
   });
 
-  it("Create new user B", function(done){
-    add_new_user_func({
-      application_host : application_host,
-      driver           : driver,
+  it("Create new user B", function () {
+    return add_new_user_func({
+      application_host, page,
       // We have just one department so far
-      department_index : "0",
-    })
-    .then(function(data){
+      department_index: "0",
+    }).then(data => {
       user_B = data.new_user_email;
-      done();
     });
   });
 
-  it("Make sure that both users are shown on Team view page", function(done){
-    check_teamview({driver : driver}, [user_A, user_B])
-      .then(function(){ done() });
+  it("Make sure that both users are shown on Team view page", function () {
+    return check_teamview({ page: page }, [user_A, user_B])
   });
 
-  it('Create new department: "IT"', function(done){
-    open_page_func({
-      url    : application_host + 'settings/departments/',
-      driver : driver,
+  it('Create new department: "IT"', function () {
+    return open_page_func({
+      url: application_host + 'settings/departments/',
+      page,
     })
-    .then(function(){ done() });
   });
 
-  it("... open new department popup and submit form", function(done){
-    driver
-      .findElement(By.css('#add_new_department_btn'))
-      .then(function(el){
-        return el.click();
-      })
-      .then(function(){
-
-        // This is very important line when working with Bootstrap modals!
-        driver.sleep(1000);
-
-        submit_form_func({
-          driver      : driver,
-          form_params : [{
-              selector : new_department_form_id+' input[name="name__new"]',
-              value : 'IT',
-          },{
-              selector        : new_department_form_id+' select[name="allowance__new"]',
-              option_selector : 'option[value="10"]',
-              value : '10',
-          }],
-          submit_button_selector : new_department_form_id+' button[type="submit"]',
-          message : /Changes to departments were saved/,
-        })
-        .then(function(){done()});
-      });
+  it("... open new department popup and submit form", async function () {
+    await Promise.all([
+      new Promise(res => setTimeout(res, 250)),
+      page.waitForSelector('.modal-content'),
+      page.click('#add_new_department_btn')
+    ])
+    await submit_form_func({
+      page,
+      form_params: [{
+        selector: new_department_form_id + ' input[name="name__new"]',
+        value: 'IT',
+      }, {
+        selector: new_department_form_id + ' select[name="allowance__new"]',
+        option_selector: 'option[value="10"]',
+        value: '10',
+      }],
+      submit_button_selector: new_department_form_id + ' button[type="submit"]',
+      message: /Changes to departments were saved/,
+    })
   });
 
-  it("Create user C", function(done){
-    add_new_user_func({
-      application_host : application_host,
-      driver           : driver,
+  it("Create user C", function () {
+    return add_new_user_func({
+      application_host, page,
       // We know that departments are ordered alphabetically, so newly
       // added "ID" is before default "Sales" one
-      department_index : "0",
-    })
-    .then(function(data){
+      department_index: "0",
+    }).then(data => {
       user_C = data.new_user_email;
-      done();
     });
   });
 
-  it("Make sure user C is superviser of IT department", function(done){
-    open_page_func({
-      url    : application_host + 'settings/departments/',
-      driver : driver,
+  it("Make sure user C is superviser of IT department", async function () {
+    await open_page_func({
+      url: application_host + 'settings/departments/',
+      page,
     })
-    .then(() => driver
-      .findElements(By.css('a[href*="/settings/departments/edit/"]'))
-      .then(links => links[0].click())
-    )
-    .then(() => submit_form_func({
-      driver      : driver,
-      form_params : [{
-        selector        : 'select[name="boss_id"]',
+
+    await Promise.all([
+      page.waitForNavigation(),
+      page.click('a[href*="/settings/departments/edit/"]')
+    ])
+
+    await submit_form_func({
+      page,
+      form_params: [{
+        selector: 'select[name="boss_id"]',
         // because we have test names generated based on time, user C
         // is going to be last in a drop down
-        option_selector : 'option:nth-child(3)',
+        option_selector: 'option:nth-child(3)',
       }],
-        submit_button_selector : department_edit_form_id+' button[type="submit"]',
-        message : /Department .* was updated/,
-    }))
-    .then(() => done());
-  });
-
-  it("Logout from A account", function(done){
-    logout_user_func({
-      application_host : application_host,
-      driver           : driver,
+      submit_button_selector: department_edit_form_id + ' button[type="submit"]',
+      message: /Department .* was updated/,
     })
-    .then(function(){ done() });
   });
 
-  it("Login as user B", function(done){
-    login_user_func({
-      application_host : application_host,
-      user_email       : user_B,
-      driver           : driver,
+  it("Logout from A account", function () {
+    return logout_user_func({
+      application_host, page,
     })
-    .then(function(){ done() });
   });
 
-  it("and make sure that only user A and B are presented", function(done){
-    check_teamview({driver : driver}, [user_A, user_B])
-      .then(function(){done()});
-  });
-
-  it("Logout from B account", function(done){
-    logout_user_func({
-      application_host : application_host,
-      driver           : driver,
+  it("Login as user B", function () {
+    return login_user_func({
+      application_host, page,
+      user_email: user_B,
     })
-    .then(function(){ done() });
   });
 
-  it("Login back as user A", function(done){
-    login_user_func({
-      application_host : application_host,
-      user_email       : user_A,
-      driver           : driver,
+  it("and make sure that only user A and B are presented", function () {
+    return check_teamview({ page: page }, [user_A, user_B])
+  });
+
+  it("Logout from B account", function () {
+    return logout_user_func({
+      application_host, page,
     })
-    .then(function(){ done() });
   });
 
-  it("and make sure that all users are shown:  A, B, and C", function(done){
-    check_teamview({driver : driver}, [user_A, user_B, user_C])
-      .then(function(){ done() });
-  });
-
-  it("Update IT department to be supervised by user B", function(done){
-    open_page_func({
-      url    : application_host + 'settings/departments/',
-      driver : driver,
+  it("Login back as user A", function () {
+    return login_user_func({
+      application_host, page,
+      user_email: user_A,
     })
-    .then(() => driver
-      .findElements(By.css('a[href*="/settings/departments/edit/"]'))
-      .then(links => links[0].click())
-    )
-    .then(() => submit_form_func({
-      driver      : driver,
-      form_params : [{
-        selector        : 'select[name="boss_id"]',
+  });
+
+  it("and make sure that all users are shown:  A, B, and C", function () {
+    return check_teamview({ page: page }, [user_A, user_B, user_C])
+  });
+
+  it("Update IT department to be supervised by user B", async function () {
+    await open_page_func({
+      url: application_host + 'settings/departments/',
+      page,
+    })
+
+    await Promise.all([
+      page.waitForNavigation(),
+      page.click('a[href*="/settings/departments/edit/"]')
+    ])
+    await submit_form_func({
+      page,
+      form_params: [{
+        selector: 'select[name="boss_id"]',
         // because we have test names generated based on time, user B
         // is going to be second one in a drop down as it was added before
         // all other ones
-        option_selector : 'option:nth-child(2)',
+        option_selector: 'option:nth-child(2)',
       }],
-        submit_button_selector : department_edit_form_id+' button[type="submit"]',
-        message : /Department .* was updated/,
-    }))
-    .then(() => done());
-  });
-
-  it("Logout from A account", function(done){
-    logout_user_func({
-      application_host : application_host,
-      driver           : driver,
+      submit_button_selector: department_edit_form_id + ' button[type="submit"]',
+      message: /Department .* was updated/,
     })
-    .then(function(){ done() });
   });
 
-  it("Login as user B", function(done){
-    login_user_func({
-      application_host : application_host,
-      user_email       : user_B,
-      driver           : driver,
+  it("Logout from A account", function () {
+    return logout_user_func({
+      application_host, page,
     })
-    .then(function(){ done() });
   });
 
-  it("and make sure that all users are shown:  A, B, and C", function(done){
-    check_teamview({driver : driver}, [user_A, user_B, user_C])
-      .then(function(){ done() });
-  });
-
-  it("Logout from admin account", function(done){
-    logout_user_func({
-      application_host : application_host,
-      driver           : driver,
+  it("Login as user B", function () {
+    return login_user_func({
+      application_host, page,
+      user_email: user_B,
     })
-    .then(function(){ done() });
   });
 
-  it("Login as user C", function(done){
-    login_user_func({
-      application_host : application_host,
-      user_email       : user_C,
-      driver           : driver,
+  it("and make sure that all users are shown:  A, B, and C", function () {
+    return check_teamview({ page: page }, [user_A, user_B, user_C])
+  });
+
+  it("Logout from admin account", function () {
+    return logout_user_func({
+      application_host, page,
     })
-    .then(function(){ done() });
   });
 
-  it("and make sure that only one user C is here", function(done){
-    check_teamview({ driver : driver }, [user_C])
-      .then(function(){ done() });
-  });
-
-  it("Logout from user C account", function(done){
-    logout_user_func({
-      application_host : application_host,
-      driver           : driver,
+  it("Login as user C", function () {
+    return login_user_func({
+      application_host, page,
+      user_email: user_C,
     })
-    .then(function(){ done() });
   });
 
-  it("Login as user A", function(done){
-    login_user_func({
-      application_host : application_host,
-      user_email       : user_A,
-      driver           : driver,
+  it("and make sure that only one user C is here", function () {
+    return check_teamview({ page: page }, [user_C])
+  });
+
+  it("Logout from user C account", function () {
+    return logout_user_func({
+      application_host, page,
     })
-    .then(function(){ done() });
   });
 
-  it("Open page for editing company details", function(done){
-    open_page_func({
-      url    : application_host + 'settings/general/',
-      driver : driver,
+  it("Login as user A", function () {
+    return login_user_func({
+      application_host, page,
+      user_email: user_A,
     })
-    .then(function(){ done() });
   });
 
-  it("Check that company is been updated if valid values are submitted", function(done){
-    submit_form_func({
-      driver      : driver,
-      form_params : [{
-          selector : company_edit_form_id+' input[name="share_all_absences"]',
-          tick     : true,
-          value    : 'on',
+  it("Open page for editing company details", function () {
+    return open_page_func({
+      url: application_host + 'settings/general/',
+      page,
+    })
+  });
+
+  it("Check that company is been updated if valid values are submitted", function () {
+    return submit_form_func({
+      page,
+      form_params: [{
+        selector: company_edit_form_id + ' input[name="share_all_absences"]',
+        tick: true,
+        value: 'on',
       }],
-      submit_button_selector : company_edit_form_id+' button[type="submit"]',
-      message : /successfully/i,
-      should_be_successful : true,
+      submit_button_selector: company_edit_form_id + ' button[type="submit"]',
+      message: /successfully/i,
+      should_be_successful: true,
     })
-    .then(function(){ done() });
   });
 
-  it("Logout from user A account", function(done){
-    logout_user_func({
-      application_host : application_host,
-      driver           : driver,
+  it("Logout from user A account", function () {
+    return logout_user_func({
+      application_host, page,
     })
-    .then(function(){ done() });
   });
 
-  it("Login as user C", function(done){
-    login_user_func({
-      application_host : application_host,
-      user_email       : user_C,
-      driver           : driver,
+  it("Login as user C", function () {
+    return login_user_func({
+      application_host, page,
+      user_email: user_C,
     })
-    .then(function(){ done() });
   });
 
-  it("and make sure that all users are shown on Team view page", function(done){
-    check_teamview({driver : driver}, [user_A, user_B, user_C])
-      .then(function(){ done() });
+  it("and make sure that all users are shown on Team view page", function () {
+    return check_teamview({ page: page }, [user_A, user_B, user_C])
   });
 
-  after(function(done){
-    driver.quit().then(function(){ done(); });
+  after(function () {
+    return page.close();
   });
 });

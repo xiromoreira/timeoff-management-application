@@ -2,19 +2,15 @@
 'use strict';
 
 const
-  test                 = require('selenium-webdriver/testing'),
-  By                     = require('selenium-webdriver').By,
-  Promise                = require("bluebird"),
-  moment                 = require('moment'),
-  expect                 = require('chai').expect,
+  expect = require('chai').expect,
   register_new_user_func = require('../../lib/register_new_user'),
-  open_page_func         = require('../../lib/open_page'),
-  submit_form_func       = require('../../lib/submit_form'),
-  check_elements_func    = require('../../lib/check_elements'),
-  config                 = require('../../lib/config'),
-  user_info_func         = require('../../lib/user_info'),
-  application_host       = config.get_application_host(),
-  schedule_form_id       = '#company_schedule_form',
+  open_page_func = require('../../lib/open_page'),
+  submit_form_func = require('../../lib/submit_form'),
+  check_elements_func = require('../../lib/check_elements'),
+  config = require('../../lib/config'),
+  user_info_func = require('../../lib/user_info'),
+  application_host = config.get_application_host(),
+  schedule_form_id = '#company_schedule_form',
   userStartsAtTheBeginingOfYear = require('../../lib/set_user_to_start_at_the_beginning_of_the_year');
 
 /*
@@ -27,175 +23,163 @@ const
  *
  * */
 
-describe("Changing default company wide schedule", function(){
+describe("Changing default company wide schedule", function () {
 
-  this.timeout( config.get_execution_timeout() );
+  this.timeout(config.get_execution_timeout());
 
-  var driver;
+  var page;
 
-  it("Register new company", function(done){
-    register_new_user_func({
-      application_host : application_host,
-    })
-    .then(function(data){
-      driver = data.driver;
-      done();
+  it("Register new company", function () {
+    return register_new_user_func({
+      application_host,
+    }).then(data => {
+      page = data.page;
     });
   });
 
-  it("Open company details page", function(done){
-    open_page_func({
-      url    : application_host + 'settings/general/',
-      driver : driver,
+  it("Open company details page", function () {
+    return open_page_func({
+      url: application_host + 'settings/general/',
+      page,
     })
-    .then(function(){ done() });
   });
 
-  it('Ensure company has default schedule', function(done){
-    check_elements_func({
-      driver            : driver,
-      elements_to_check : [{
-        selector : schedule_form_id + ' input[name="monday"]',
-        tick     : true,
-        value    : 'on',
-      },{
-        selector : schedule_form_id + ' input[name="tuesday"]',
-        tick     : true,
-        value    : 'on',
-      },{
-        selector : schedule_form_id + ' input[name="wednesday"]',
-        tick     : true,
-        value    : 'on',
-      },{
-        selector : schedule_form_id + ' input[name="thursday"]',
-        tick     : true,
-        value    : 'on',
-      },{
-        selector : schedule_form_id + ' input[name="friday"]',
-        tick     : true,
-        value    : 'on',
-      },{
-        selector : schedule_form_id + ' input[name="saturday"]',
-        tick     : true,
-        value    : 'off',
-      },{
-        selector : schedule_form_id + ' input[name="sunday"]',
-        tick     : true,
-        value    : 'off',
+  it('Ensure company has default schedule', function () {
+    return check_elements_func({
+      page,
+      elements_to_check: [{
+        selector: schedule_form_id + ' input[name="monday"]',
+        tick: true,
+        value: 'on',
+      }, {
+        selector: schedule_form_id + ' input[name="tuesday"]',
+        tick: true,
+        value: 'on',
+      }, {
+        selector: schedule_form_id + ' input[name="wednesday"]',
+        tick: true,
+        value: 'on',
+      }, {
+        selector: schedule_form_id + ' input[name="thursday"]',
+        tick: true,
+        value: 'on',
+      }, {
+        selector: schedule_form_id + ' input[name="friday"]',
+        tick: true,
+        value: 'on',
+      }, {
+        selector: schedule_form_id + ' input[name="saturday"]',
+        tick: true,
+        value: 'off',
+      }, {
+        selector: schedule_form_id + ' input[name="sunday"]',
+        tick: true,
+        value: 'off',
       }],
     })
-    .then(function(){ done() });
   });
 
-  it('Make Wednesday to be non-working day', function(done){
-    submit_form_func({
-      driver      : driver,
-      form_params : [{
-        selector : schedule_form_id + ' #schedule_item_wednesday',
-        tick     : true,
+  it('Make Wednesday to be non-working day', function () {
+    return submit_form_func({
+      page,
+      form_params: [{
+        selector: schedule_form_id + ' #schedule_item_wednesday',
+        tick: true,
       }],
-      submit_button_selector : schedule_form_id+' button[type="submit"]',
-      message : /Schedule for company was saved/,
+      submit_button_selector: schedule_form_id + ' button[type="submit"]',
+      message: /Schedule for company was saved/,
     })
-    .then(function(){ done() });
   });
 
-  it('And make sure that it was indeed marked so', function(done){
-    check_elements_func({
-      driver            : driver,
-      elements_to_check : [{
-        selector : schedule_form_id + ' input[name="monday"]',
-        tick     : true,
-        value    : 'on',
-      },{
-        selector : schedule_form_id + ' input[name="tuesday"]',
-        tick     : true,
-        value    : 'on',
-      },{
-        selector : schedule_form_id + ' input[name="wednesday"]',
-        tick     : true,
-        value    : 'off',
-      },{
-        selector : schedule_form_id + ' input[name="thursday"]',
-        tick     : true,
-        value    : 'on',
-      },{
-        selector : schedule_form_id + ' input[name="friday"]',
-        tick     : true,
-        value    : 'on',
-      },{
-        selector : schedule_form_id + ' input[name="saturday"]',
-        tick     : true,
-        value    : 'off',
-      },{
-        selector : schedule_form_id + ' input[name="sunday"]',
-        tick     : true,
-        value    : 'off',
+  it('And make sure that it was indeed marked so', function () {
+    return check_elements_func({
+      page,
+      elements_to_check: [{
+        selector: schedule_form_id + ' input[name="monday"]',
+        tick: true,
+        value: 'on',
+      }, {
+        selector: schedule_form_id + ' input[name="tuesday"]',
+        tick: true,
+        value: 'on',
+      }, {
+        selector: schedule_form_id + ' input[name="wednesday"]',
+        tick: true,
+        value: 'off',
+      }, {
+        selector: schedule_form_id + ' input[name="thursday"]',
+        tick: true,
+        value: 'on',
+      }, {
+        selector: schedule_form_id + ' input[name="friday"]',
+        tick: true,
+        value: 'on',
+      }, {
+        selector: schedule_form_id + ' input[name="saturday"]',
+        tick: true,
+        value: 'off',
+      }, {
+        selector: schedule_form_id + ' input[name="sunday"]',
+        tick: true,
+        value: 'off',
       }],
     })
-    .then(function(){ done() });
   });
 
-  it('Open Calendar page', function(done){
-    open_page_func({
-      url    : application_host + 'calendar/?year=2015&show_full_year=1',
-      driver : driver,
+  it('Open Calendar page', function () {
+    return open_page_func({
+      url: application_host + 'calendar/?year=2015&show_full_year=1',
+      page,
     })
-    .then(function(){done()});
   });
 
-  it('... and ensure Wednesday is marked as non-working day', function(done){
-    driver
-      // We know that 7th of January 2015 is Wednesday
-      .findElement(By.css('table.month_January td.day_7'))
-      .then(function(el){ return el.getAttribute('class'); })
-      .then(function(css){
-        expect(css).to.match(/\bweekend_cell\b/);
-        done();
-      });
+  it('... and ensure Wednesday is marked as non-working day', function () {
+    // We know that 7th of January 2015 is Wednesday
+    return page.$('table.month_January td.day_7')
+      .then(el => el.getProperty('className'))
+      .then(p => p.jsonValue())
+      .then(css =>
+        expect(css).to.match(/\bweekend_cell\b/)
+      )
   });
 
-  it('... and ensure that Monday is still working day', function(done){
-    driver
-      .findElement(By.css('table.month_January td.day_5'))
-      .then(function(el){ return el.getAttribute('class'); })
-      .then(function(css){
-        expect(css).not.to.match(/\bweekend_cell\b/);
-        done();
-      });
+  it('... and ensure that Monday is still working day', function () {
+    return page.$('table.month_January td.day_5')
+      .then(el => el.getProperty('className'))
+      .then(p => p.jsonValue())
+      .then(css =>
+        expect(css).not.to.match(/\bweekend_cell\b/)
+      )
   });
 
-  it('Open Team view page', function(done){
-    open_page_func({
-      url    : application_host + 'calendar/teamview/?&date=2015-01',
-      driver : driver,
+  it('Open Team view page', function () {
+    return open_page_func({
+      url: application_host + 'calendar/teamview/?&date=2015-01',
+      page,
     })
-    .then(function(){done()});
   });
 
-  it('... and make sure Wednsday is marked as non-working day', function(done){
-    driver
-      // We know that 7th of January 2015 is Wednesday
-      .findElement(By.css('table.team-view-table td.day_7'))
-      .then(function(el){ return el.getAttribute('class'); })
-      .then(function(css){
-        expect(css).to.match(/\bweekend_cell\b/);
-        done();
-      });
+  it('... and make sure Wednesday is marked as non-working day', function () {
+    // We know that 7th of January 2015 is Wednesday
+    return page.$('table.team-view-table td.day_7')
+      .then(el => el.getProperty('className'))
+      .then(p => p.jsonValue())
+      .then(css =>
+        expect(css).to.match(/\bweekend_cell\b/)
+      )
   });
 
-  it('... and ensure Monday is still working day', function(done){
-    driver
-      .findElement(By.css('table.team-view-table td.day_5'))
-      .then(function(el){ return el.getAttribute('class'); })
-      .then(function(css){
-        expect(css).not.to.match(/\bweekend_cell\b/);
-        done();
-      });
+  it('... and ensure Monday is still working day', function () {
+    return page.$('table.team-view-table td.day_5')
+      .then(el => el.getProperty('className'))
+      .then(p => p.jsonValue())
+      .then(css =>
+        expect(css).not.to.match(/\bweekend_cell\b/)
+      )
   });
 
-  after(function(done){
-    driver.quit().then(function(){ done(); });
+  after(function () {
+    return page.close();
   });
 
 });
@@ -209,115 +193,96 @@ describe("Changing default company wide schedule", function(){
  *    * Ensure the "used days" for previously added leave reflects the change
  * */
 
-describe('Leave request reflects shanges in company schedule', function(){
+describe('Leave request reflects shanges in company schedule', function () {
 
-  this.timeout( config.get_execution_timeout() );
+  this.timeout(config.get_execution_timeout());
 
-  let driver, email_A;
+  let page, email_A;
 
-  it("Register new company", function(done){
-    register_new_user_func({
-      application_host : application_host,
-    })
-    .then(function(data){
-      driver = data.driver;
+  it("Register new company", function () {
+    return register_new_user_func({
+      application_host,
+    }).then(data => {
+      page = data.page;
       email_A = data.email;
-      done();
     });
   });
 
-  it("Obtain information about newly added user", (done) => {
-    user_info_func({driver, email:email_A})
-    .then(data => done());
+  it("Obtain information about newly added user", function () {
+    return user_info_func({ page, email: email_A })
   });
 
-  it("Ensure user starts at the very beginning of current year", done =>{
-    userStartsAtTheBeginingOfYear({driver, email:email_A, year:2015})
-      .then(() => done())
+  it("Ensure user starts at the very beginning of current year", function () {
+    return userStartsAtTheBeginingOfYear({ page, email: email_A, year: 2015 })
   });
 
-  it("Open Book leave popup window", function(done){
-    driver.findElement(By.css('#book_time_off_btn'))
-      .then(function(el){ return el.click() })
-      .then(function(el){
-        // This is very important line when working with Bootstrap modals!
-        return driver.sleep(1000);
-      })
-      .then(function(){ done() });
+  it("Open Book leave popup window", function () {
+    return Promise.all([
+      new Promise(res => setTimeout(res, 250)),
+      page.waitForSelector('.modal-content'),
+      page.click('#book_time_off_btn')
+    ])
   });
 
-  it("Submit new leave requesti for 7 calendar days", function(done){
-    submit_form_func({
-      driver      : driver,
-      form_params : [{
-        selector : 'input#from',
-        value    : '2015-06-15',
-      },{
-        selector : 'input#to',
-        value    : '2015-06-21',
+  it("Submit new leave requesti for 7 calendar days", function () {
+    return submit_form_func({
+      page,
+      form_params: [{
+        selector: 'input#from',
+        value: '2015-06-15',
+      }, {
+        selector: 'input#to',
+        value: '2015-06-21',
       }],
-      message : /New leave request was added/,
+      message: /New leave request was added/,
     })
-    .then(function(){done()});
   });
 
-  it("Open requests page", function(done){
-    open_page_func({
-      url    : application_host + 'requests/',
-      driver : driver,
+  it("Open requests page", function () {
+    return open_page_func({
+      url: application_host + 'requests/',
+      page,
     })
-    .then(function(){done()});
   });
 
-  it('... and ensure newly created request deducts 5 days from allowance', function(done){
-    driver.findElement(By.css('td[data-vpp="days_used"]'))
-    .then(function(el){ return el.getText() })
-    .then(function(days_used){
-      expect(days_used).to.be.equal('5');
-    })
-    .then(function(){done()});
+  it('... and ensure newly created request deducts 5 days from allowance', function () {
+    return page.$eval('td[data-vpp="days_used"]', e => e.innerText.trim())
+      .then(days_used => expect(days_used).to.be.equal('5'))
   });
 
-  it("Open company details page", function(done){
-    open_page_func({
-      url    : application_host + 'settings/general/',
-      driver : driver,
+  it("Open company details page", function () {
+    return open_page_func({
+      url: application_host + 'settings/general/',
+      page,
     })
-    .then(function(){ done() });
   });
 
-  it('Make Saturday to be working day', function(done){
-    submit_form_func({
-      driver      : driver,
-      form_params : [{
-        selector : schedule_form_id + ' #schedule_item_saturday',
-        tick     : true,
+  it('Make Saturday to be working day', function () {
+    return submit_form_func({
+      page,
+      form_params: [{
+        selector: schedule_form_id + ' #schedule_item_saturday',
+        tick: true,
       }],
-      submit_button_selector : schedule_form_id+' button[type="submit"]',
-      message : /Schedule for company was saved/,
+      submit_button_selector: schedule_form_id + ' button[type="submit"]',
+      message: /Schedule for company was saved/,
     })
-    .then(function(){ done() });
   });
 
-  it("Open requests page", function(done){
-    open_page_func({
-      url    : application_host + 'requests/',
-      driver : driver,
+  it("Open requests page", function () {
+    return open_page_func({
+      url: application_host + 'requests/',
+      page,
     })
-    .then(function(){done()});
   });
 
-  it('... and ensure newly created request deducts 6 days from allowance', function(done){
-    driver.findElement(By.css('td[data-vpp="days_used"]'))
-    .then(function(el){ return el.getText() })
-    .then(function(days_used){
-      expect(days_used).to.be.equal('6');
-    })
-    .then(function(){done()});
+  it('... and ensure newly created request deducts 6 days from allowance', function () {
+    return page.$eval('td[data-vpp="days_used"]', e => e.innerText.trim())
+      .then(days_used => expect(days_used).to.be.equal('6'))
   });
 
-  after(function(done){
-    driver.quit().then(function(){ done(); });
+  after(function () {
+    return page.close();
   });
 
 });

@@ -1,16 +1,12 @@
 
 'use strict';
 
-var test             = require('selenium-webdriver/testing'),
-    By               = require('selenium-webdriver').By,
-    expect           = require('chai').expect,
-    _                = require('underscore'),
-    Promise          = require("bluebird"),
-    login_user_func        = require('../lib/login_with_user'),
-    register_new_user_func = require('../lib/register_new_user'),
-    logout_user_func       = require('../lib/logout_user'),
-    config                 = require('../lib/config'),
-    application_host       = config.get_application_host();
+const login_user_func = require('../lib/login_with_user')
+const register_new_user_func = require('../lib/register_new_user')
+const logout_user_func = require('../lib/logout_user')
+const config = require('../lib/config')
+
+const application_host = config.get_application_host()
 
 /*
   User emails are case insensitive.
@@ -22,59 +18,51 @@ var test             = require('selenium-webdriver/testing'),
 
 */
 
-describe('Emails are case insensitive', function(){
+describe('Emails are case insensitive', function () {
 
-  this.timeout( config.get_execution_timeout() );
+  this.timeout(config.get_execution_timeout());
 
-  var admin_email, driver;
+  var admin_email, page;
 
-  it('Register an account useing upper case letters', function(done){
-    register_new_user_func({
-      application_host : application_host,
-      user_email : (new Date()).getTime() + 'John.Smith@TEST.com',
-    })
-    .then(function(data){
+  it('Register an account useing upper case letters', function () {
+    return register_new_user_func({
+      application_host,
+      user_email: (new Date()).getTime() + 'John.Smith@TEST.com',
+
+    }).then(data => {
       admin_email = data.email;
-      driver = data.driver;
-      done();
+      page = data.page;
     });
   });
 
-  it("Logount from current session", function(done){
-    logout_user_func({
-      application_host : application_host,
-      driver           : driver,
+  it("Logount from current session", function () {
+    return logout_user_func({
+      application_host, page,
     })
-    .then(function(){ done() });
   });
 
-  it("Login with lower case email", function(done){
-    login_user_func({
-      application_host : application_host,
-      user_email       : admin_email.toLowerCase(),
-      driver           : driver,
+  it("Login with lower case email", function () {
+    return login_user_func({
+      application_host, page,
+      user_email: admin_email.toLowerCase(),
     })
-    .then(function(){ done() });
   });
 
-  it("Logout", function(done){
-    logout_user_func({
-      application_host : application_host,
-      driver           : driver,
+  it("Logout", function () {
+    return logout_user_func({
+      application_host,
+      page,
     })
-    .then(function(){ done() });
   });
 
-  it("Try to login with upper case email", function(done){
-    login_user_func({
-      application_host : application_host,
-      user_email       : admin_email.toUpperCase(),
-      driver           : driver,
+  it("Try to login with upper case email", function () {
+    return login_user_func({
+      application_host, page,
+      user_email: admin_email.toUpperCase(),
     })
-    .then(function(){ done() });
   });
 
-  after(function(done){
-    driver.quit().then(function(){ done(); });
+  after(function () {
+    return page.close()
   });
 });
