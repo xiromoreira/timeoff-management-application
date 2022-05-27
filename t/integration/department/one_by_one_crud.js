@@ -195,7 +195,8 @@ describe("Edit individual department via department details page", function () {
     department_edit_page_url = page.url()
   })
 
-  it('Edit department', function () {
+  it('Edit department', async function () {
+    await page.waitForSelector(department_edit_form_id + ' button[type="submit"]')
     return submit_form_func({
       page,
       form_params: [{

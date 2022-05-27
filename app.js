@@ -1,7 +1,6 @@
 
 var express      = require('express');
 var path         = require('path');
-var favicon      = require('serve-favicon');
 var logger       = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser   = require('body-parser');
@@ -16,6 +15,12 @@ var handlebars = require('express-handlebars')
     defaultLayout : 'main',
     extname       : '.hbs',
     helpers       : require('./lib/view/helpers')(),
+    runtimeOptions: {
+      // TODO: These options should go away for security, but guess
+      // it would need big refactor on templates and renders
+      allowProtoMethodsByDefault: true,
+      allowProtoPropertiesByDefault: true,
+    }
   });
 
 app.engine('.hbs', handlebars.engine);
