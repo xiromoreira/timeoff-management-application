@@ -15,7 +15,7 @@ module.exports = {
       return queryInterface.addColumn(
         'Companies',
         'carry_over',
-        models.Company.attributes.carry_over
+        models.Company.rawAttributes.carry_over
       );
     });
   },

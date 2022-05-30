@@ -6,7 +6,7 @@ var models = require('../lib/model/db');
 module.exports = {
   up: function (queryInterface, Sequelize) {
 
-    queryInterface.describeTable('Users').then(function(attributes){
+    queryInterface.describeTable('Users').then(function (attributes) {
 
       if (attributes.hasOwnProperty('auto_approve')) {
         return 1;
@@ -15,7 +15,7 @@ module.exports = {
       return queryInterface.addColumn(
         'Users',
         'auto_approve',
-        models.User.attributes.auto_approve
+        models.User.rawAttributes.auto_approve
       );
     });
 

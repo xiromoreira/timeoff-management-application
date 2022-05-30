@@ -84,13 +84,13 @@ async function register_new_user_func(args) {
 
   if (failing_error_message) {
 
-    page.$eval('div.alert-danger', el => el.innerText)
+    await page.$eval('div.alert-danger', el => el.innerText)
       .then(text => expect(text).to.be.equal(failing_error_message))
 
   } else {
 
     // Make sure registration completed successfully
-    page.$eval('div.alert-success', el => el.innerText)
+    await page.$eval('div.alert-success', el => el.innerText)
       .then(text => expect(text).to.be.equal('Registration is complete.'))
   }
 

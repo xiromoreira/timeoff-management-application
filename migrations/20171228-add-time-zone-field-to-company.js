@@ -4,10 +4,10 @@
 var models = require('../lib/model/db');
 
 module.exports = {
-  up: function (queryInterface, Sequelize) {
+  up: function (queryInterface) {
 
     return queryInterface.describeTable('Companies')
-      .then(function(attributes){
+      .then(function (attributes) {
 
         if (attributes.hasOwnProperty('timezone')) {
           return 1;
@@ -16,12 +16,12 @@ module.exports = {
         return queryInterface.addColumn(
           'Companies',
           'timezone',
-          models.Company.attributes.timezone
+          models.Company.rawAttributes.timezone
         );
       });
   },
 
-  down: function (queryInterface, Sequelize) {
+  down: function (queryInterface) {
     return queryInterface
       .removeColumn('Companies', 'timezone');
   }

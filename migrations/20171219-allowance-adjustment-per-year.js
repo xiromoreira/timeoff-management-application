@@ -10,7 +10,7 @@ module.exports = {
     return queryInterface
       .createTable(
         models.UserAllowanceAdjustment.tableName,
-        models.UserAllowanceAdjustment.attributes
+        models.UserAllowanceAdjustment.rawAttributes
       )
       .then(() => queryInterface.describeTable('Users'))
       .then(function(attributes){

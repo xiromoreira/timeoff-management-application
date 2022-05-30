@@ -17,7 +17,7 @@ module.exports = {
 
         return queryInterface
           // Create Temp Departments based on current model definitiom
-          .createTable('Departments_backup', models.Department.attributes)
+          .createTable('Departments_backup', models.Department.rawAttributes)
 
           .then(function(){
             return queryInterface.sequelize.query('PRAGMA foreign_keys=off;');

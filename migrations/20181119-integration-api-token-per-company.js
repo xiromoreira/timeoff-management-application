@@ -15,7 +15,7 @@ module.exports = {
       return queryInterface.addColumn(
         'Companies',
         'integration_api_token',
-        models.Company.attributes.integration_api_token
+        models.Company.rawAttributes.integration_api_token
       );
     });
 
@@ -28,7 +28,7 @@ module.exports = {
       return queryInterface.addColumn(
         'Companies',
         'integration_api_enabled',
-        models.Company.attributes.integration_api_enabled
+        models.Company.rawAttributes.integration_api_enabled
       );
     });
 
