@@ -1,3 +1,9 @@
 {
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+    "editor.tabSize": 2,
+    "[javascript]": {
+        "editor.formatOnSave": true,
+        "editor.tabSize": 2,
+        "editor.detectIndentation": true
+    },
 }

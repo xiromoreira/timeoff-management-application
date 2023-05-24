@@ -1,10 +1,10 @@
 
-var express      = require('express');
-var path         = require('path');
-var logger       = require('morgan');
+var express = require('express');
+var path = require('path');
+var logger = require('morgan');
 var cookieParser = require('cookie-parser');
-var bodyParser   = require('body-parser');
-var moment       = require('moment');
+var bodyParser = require('body-parser');
+var moment = require('moment');
 const createSessionMiddleware = require('./lib/middleware/withSession');
 
 var app = express();
@@ -12,9 +12,9 @@ var app = express();
 // View engine setup
 var handlebars = require('express-handlebars')
   .create({
-    defaultLayout : 'main',
-    extname       : '.hbs',
-    helpers       : require('./lib/view/helpers')(),
+    defaultLayout: 'main',
+    extname: '.hbs',
+    helpers: require('./lib/view/helpers')(),
     runtimeOptions: {
       // TODO: These options should go away for security, but guess
       // it would need big refactor on templates and renders
@@ -54,46 +54,46 @@ app.use(passport.session());
 // Custom middlewares
 //
 // Make sure session and user objects are available in templates
-app.use(function(req,res,next){
+app.use(function (req, res, next) {
 
   // Get today given user's timezone
   var today;
 
-  if ( req.user && req.user.company ) {
+  if (req.user && req.user.company) {
     today = req.user.company.get_today();
   } else {
     today = moment.utc();
   }
 
-  res.locals.session     = req.session;
+  res.locals.session = req.session;
   res.locals.logged_user = req.user;
   res.locals.url_to_the_site_root = '/';
   res.locals.requested_path = req.originalUrl;
   // For book leave request modal
   res.locals.booking_start = today,
-  res.locals.booking_end = today,
-  res.locals.keep_team_view_hidden =
-    !! (req.user && req.user.company.is_team_view_hidden && ! req.user.admin);
+    res.locals.booking_end = today,
+    res.locals.keep_team_view_hidden =
+    !!(req.user && req.user.company.is_team_view_hidden && !req.user.admin);
 
   next();
 });
 
-app.use(function(req,res,next){
-    res.locals.custom_java_script = [
-      '/js/bootstrap-datepicker.js',
-      '/js/global.js'
-    ];
-    res.locals.custom_css = [
-      '/css/bootstrap-datepicker3.standalone.css'
-    ];
+app.use(function (req, res, next) {
+  res.locals.custom_java_script = [
+    '/js/bootstrap-datepicker.js',
+    '/js/global.js'
+  ];
+  res.locals.custom_css = [
+    '/css/bootstrap-datepicker3.standalone.css'
+  ];
 
-    next();
+  next();
 });
 
 // Enable flash messages within session
-app.use( require('./lib/middleware/flash_messages') );
+app.use(require('./lib/middleware/flash_messages'));
 
-app.use( require('./lib/middleware/session_aware_redirect') );
+app.use(require('./lib/middleware/session_aware_redirect'));
 
 // Here will be publicly accessible routes
 
@@ -154,7 +154,7 @@ app.use(
 );
 
 // catch 404
-app.use(function(req, res, next) {
+app.use(function (req, res, next) {
   res.render('not_found');
 });
 
@@ -164,23 +164,23 @@ app.use(function(req, res, next) {
 // development error handler
 // will print stacktrace
 if (app.get('env') === 'development') {
-    app.use(function(err, req, res, next) {
-        res.status(err.status || 500);
-        res.render('error', {
-            message: err.message,
-            error: err
-        });
+  app.use(function (err, req, res, next) {
+    res.status(err.status || 500);
+    res.render('error', {
+      message: err.message,
+      error: err
     });
+  });
 }
 
 // production error handler
 // no stacktraces leaked to user
-app.use(function(err, req, res, next) {
-    res.status(err.status || 500);
-    res.render('error', {
-        message: err.message,
-        error: {}
-    });
+app.use(function (err, req, res, next) {
+  res.status(err.status || 500);
+  res.render('error', {
+    message: err.message,
+    error: {}
+  });
 });
 
 module.exports = app;

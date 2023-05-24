@@ -1,9 +1,9 @@
 'use strict';
 
 module.exports = {
-  up: function (queryInterface, Sequelize) {
+  async up(queryInterface, Sequelize) {
 
-    queryInterface.describeTable('Companies').then(function(attributes){
+    queryInterface.describeTable('Companies').then(function (attributes) {
 
       if (attributes.hasOwnProperty('date_format')) {
         return 1;
@@ -13,15 +13,15 @@ module.exports = {
         'Companies',
         'date_format',
         {
-          type         : Sequelize.STRING,
-          allowNull    : false,
-          defaultValue : 'YYYY-MM-DD',
+          type: Sequelize.STRING,
+          allowNull: false,
+          defaultValue: 'YYYY-MM-DD',
         }
       );
     });
   },
 
-  down: function (queryInterface, Sequelize) {
+  async down(queryInterface) {
     return queryInterface.removeColumn('Companies', 'date_format');
   }
 };
