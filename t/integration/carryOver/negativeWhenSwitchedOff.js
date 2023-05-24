@@ -27,7 +27,7 @@ const
  *
  * */
 
-describe('No negative allowanca is carried overs', function () {
+describe('No negative allowance is carried overs', function () {
 
   this.timeout(config.get_execution_timeout())
 

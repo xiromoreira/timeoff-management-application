@@ -15,6 +15,7 @@ const
   application_host = config.get_application_host();
 
 const next_year = moment().add(1, 'y').format('YYYY');
+const next_year_monday_april = moment().add(1, 'y').month(3).startOf('week').add(1, 'd')
 
 /*
  *  Scenario to go in this test:
@@ -101,10 +102,10 @@ describe('Leave type limits for next year: ' + next_year, function () {
       page,
       form_params: [{
         selector: 'input#from',
-        value: next_year + '-05-11',
+        value: next_year_monday_april.format('YYYY-MM-DD'),
       }, {
         selector: 'input#to',
-        value: next_year + '-05-11',
+        value: next_year_monday_april.format('YYYY-MM-DD'),
       }],
       message: /New leave request was added/,
     })
@@ -112,7 +113,7 @@ describe('Leave type limits for next year: ' + next_year, function () {
     // Check that all days are marked as pended
     await check_booking_func({
       page,
-      full_days: [moment(next_year + '-05-11')],
+      full_days: [next_year_monday_april],
       type: 'pended',
     })
   });
@@ -176,10 +177,10 @@ describe('Leave type limits for next year: ' + next_year, function () {
       page,
       form_params: [{
         selector: 'input#from',
-        value: next_year + '-05-17',
+        value: next_year_monday_april.add(1, 'w').format('YYYY-MM-DD'),
       }, {
         selector: 'input#to',
-        value: next_year + '-05-17',
+        value: next_year_monday_april.add(1, 'w').format('YYYY-MM-DD'),
       }],
       message: /Failed to create a leave request/,
     })

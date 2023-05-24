@@ -14,8 +14,7 @@ const
   check_elements_func = require('../../lib/check_elements'),
   config = require('../../lib/config'),
   application_host = config.get_application_host(),
-  department_edit_form_id = '#department_edit_form',
-  currentYear = moment.utc().year()
+  department_edit_form_id = '#department_edit_form'
 
 /*
  *  Scenario to check:
@@ -144,6 +143,9 @@ describe('Revoke leave request', function () {
   })
 
   it("Request new leave", function () {
+    // Tuesday next week
+    const first = moment().startOf('week').add(8, 'days').format('YYYY-MM-DD');
+    const last = moment().startOf('week').add(9, 'days').format('YYYY-MM-DD');
     return Promise.all([
       new Promise(res => setTimeout(res, 250)),
       page.waitForSelector('.modal-content'),
@@ -157,20 +159,22 @@ describe('Revoke leave request', function () {
         value: "2",
       }, {
         selector: 'input#from',
-        value: `${currentYear}-05-12`,
+        value: first,
       }, {
         selector: 'input#to',
-        value: `${currentYear}-05-13`,
+        value: last,
       }],
       message: /New leave request was added/,
     }))
   })
 
   it("Check that all days are marked as pended", function () {
+    const first = moment().startOf('week').add(8, 'days');
+    const last = moment().startOf('week').add(9, 'days');
     return check_booking_func({
       page,
-      full_days: [moment.utc(`${currentYear}-05-13`)],
-      halfs_1st_days: [moment.utc(`${currentYear}-05-12`)],
+      full_days: [last],
+      halfs_1st_days: [first],
       type: 'pended',
     })
   })
