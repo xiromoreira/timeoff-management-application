@@ -8,4 +8,5 @@ $(document).ready(function () {
         $(checkSel).change();
     }
     handleSectionToggle('#ldap_auth_enabled', '#ldap_config');
+    handleSectionToggle('#imap_auth_enabled', '#imap_config');
 });

@@ -45,6 +45,29 @@
         </div>
       </div>
 
+      <div class="form-group">
+        <div class="col-md-9 col-md-offset-3">
+        <label for="imap_auth_enabled" class="control-label">
+          <input
+            id="imap_auth_enabled"
+            type="checkbox"
+            {{# if imap_config }} checked="checked" {{/if}}
+            name="imap_auth_enabled"
+           />&nbsp;
+           Enable IMAP authentication
+          </label>
+        </div>
+      </div>
+
+      <hr/>
+      <div class="form-group">
+          <label for="auth_domain" class="col-md-3 control-label">Org users domain</label>
+          <div class="col-md-5">
+            <input class="form-control" id="auth_domain" placeholder="" name="auth_domain" value="{{ auth_domain }}" aria-describedby="auth_domain_help">
+          </div>
+          <span id="auth_domain_help" class="help-block">Domain used to link email address with this company and try the auth methods set here</span>
+        </div>
+
       <hr/>
 
       <div id="ldap_config">
@@ -88,20 +111,32 @@
             <input class="form-control" id="ldap_search_base" placeholder="dc=example,dc=com" name="searchbase" value="{{ ldap_config.searchbase }}">
           </div>
         </div>
+      </div>
 
-        <hr/>
-
-        <p class="col-md-offset-2">In order to prevent a situation where a company account locks itself out, the current administrator (<strong>{{# with logged_user}}{{this.full_name}}{{/with}}</strong>) has to enter the password associated with her/his email on the LDAP server.</p>
-        <p class="col-md-offset-2">This is to ensure that <strong>{{# with logged_user}}{{this.full_name}}{{/with}}</strong> can login into TimeOff.Management with new LDAP settings.</p>
-
-        <hr/>
+      <div id="imap_config">
+        <div class="form-group">
+          <label for="imap_host" class="col-md-3 control-label">IMAP host</label>
+          <div class="col-md-5">
+            <input class="form-control" id="imap_host" placeholder="127.0.0.1" name="imap_host" value="{{imap_config.host}}">
+          </div>
+        </div>
 
         <div class="form-group">
-          <label for="current_user_password" class="col-md-3 control-label">My LDAP password</label>
+          <label for="imap_port" class="col-md-3 control-label">IMAP port</label>
           <div class="col-md-5">
-            <input class="form-control" id="current_user_password" placeholder="" name="password_to_check" value="" type="password" aria-describedby="current_user_password_help">
+            <input class="form-control" id="imap_port" placeholder="993" name="imap_port" value="{{imap_config.port}}">
           </div>
-          <span id="current_user_password_help" class="help-block">Password for <strong>{{# with logged_user}}{{this.full_name}}{{/with}}</strong> in the new LDAP server.</span>
+        </div>
+
+        <div class="form-group">
+          <label for="imap_security" class="col-md-3 control-label">Security</label>
+          <div class="col-md-5">
+            <select class="form-control" id="imap_security" name="imap_security">
+              <option value="" {{# if_equal imap_config.security "" }} selected="selected"{{/if_equal}}>None</option>
+              <option value="tls" {{# if_equal imap_config.security "tls" }} selected="selected"{{/if_equal}}>TLS</option>
+              <option value="starttls" {{# if_equal imap_config.security "starttls" }} selected="selected"{{/if_equal}}>STARTTLS</option>
+            </select>
+          </div>
         </div>
       </div>
 
