@@ -11,14 +11,14 @@ describe('Check Email', function () {
       template_name: 'foobar',
       context: {
         user: {
-          name: 'FOO',
-          reload_with_session_details: () => { Promise.resolve(1); },
+          name: 'FOO'
         },
       },
     }).then(function (email) {
 
       expect(email.subject).to.be.equal('Email subject goes here');
-      expect(email.body).to.match(/Hello FOO\./);
+      const trimmed = email.body.replaceAll(/<\/?[^>]+(>|$)/gi, "")
+      expect(trimmed).to.include("Hello FOO.");
 
     });
 
